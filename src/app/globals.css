@@ -1,97 +1,310 @@
 @import "tailwindcss";
 
+/* =========================================
+   THEME VARIABLES
+========================================= */
+
 :root,
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --app-bg: #090d16;
-  --sidebar-bg: #0d1320;
-  --panel-bg: #0d1422;
-  --panel-secondary: #111b2b;
-  --plot-bg: #0a101c;
+  --app-bg: #080d17;
+  --sidebar-bg: #0d1422;
 
-  --border: rgba(255, 255, 255, .08);
+  --header-bg: #0d1420;
+  --panel-bg: #111b2b;
+  --panel-secondary: #162338;
+  --panel-hover: #1b2a40;
+
+  --plot-bg: #0b1321;
+
+  --border: rgba(148, 163, 184, 0.12);
+  --border-strong: rgba(148, 163, 184, 0.22);
+
   --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-secondary: #a3b2c7;
+  --text-muted: #718198;
 
   --accent: #22d3ee;
-  --accent-soft: rgba(34, 211, 238, .12);
+  --accent-hover: #67e8f9;
+  --accent-soft: rgba(34, 211, 238, 0.11);
 
-  --plot-grid: rgba(148, 163, 184, .12);
-  --plot-axis: #475569;
-  --plot-neutral: #94a3b8;
-  --plot-point-stroke: #0a101c;
+  --success: #34d399;
+  --warning: #fbbf24;
+
+  --plot-grid: rgba(148, 163, 184, 0.09);
+  --plot-axis: #526176;
+  --plot-neutral: #60a5fa;
+  --plot-point-stroke: #0b1321;
+
+  --shadow-panel:
+    0 4px 18px rgba(0, 0, 0, 0.16);
+
+  --shadow-elevated:
+    0 8px 28px rgba(0, 0, 0, 0.22);
 }
 
 [data-theme="light"] {
   color-scheme: light;
 
-  --app-bg: #f1f5f9;
-  --sidebar-bg: #ffffff;
+  --app-bg: #edf2f8;
+  --sidebar-bg: #f8fafc;
+
+  --header-bg: #ffffff;
   --panel-bg: #ffffff;
-  --panel-secondary: #f8fafc;
+  --panel-secondary: #f1f5f9;
+  --panel-hover: #e8eef6;
+
   --plot-bg: #f8fafc;
 
-  --border: rgba(15, 23, 42, .10);
+  --border: rgba(15, 23, 42, 0.09);
+  --border-strong: rgba(15, 23, 42, 0.16);
+
   --text-primary: #172033;
   --text-secondary: #475569;
   --text-muted: #64748b;
 
   --accent: #0891b2;
-  --accent-soft: rgba(8, 145, 178, .10);
+  --accent-hover: #0e7490;
+  --accent-soft: rgba(8, 145, 178, 0.10);
 
-  --plot-grid: rgba(71, 85, 105, .12);
+  --success: #059669;
+  --warning: #d97706;
+
+  --plot-grid: rgba(71, 85, 105, 0.10);
   --plot-axis: #94a3b8;
-  --plot-neutral: #64748b;
+  --plot-neutral: #0284c7;
   --plot-point-stroke: #f8fafc;
+
+  --shadow-panel:
+    0 3px 14px rgba(15, 23, 42, 0.045);
+
+  --shadow-elevated:
+    0 8px 24px rgba(15, 23, 42, 0.08);
 }
+
+/* =========================================
+   GLOBAL
+========================================= */
 
 * {
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
+  min-height: 100%;
+}
+
+body {
   background: var(--app-bg);
   color: var(--text-primary);
-  font-family: Arial, Helvetica, sans-serif;
-  transition: background .2s, color .2s;
+
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 button,
-select,
-input {
+input,
+select {
   font: inherit;
 }
 
-.plot-container {
-  background: var(--plot-bg);
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+/* =========================================
+   APPLICATION LAYOUT
+========================================= */
+
+.app-shell {
+  width: 100%;
+  height: 100dvh;
+  display: flex;
+  overflow: hidden;
+  background: var(--app-bg);
+}
+
+.app-sidebar {
+  width: 245px;
+  min-width: 245px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  transition: width 0.2s ease;
+}
+
+.app-sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  border: none;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-header {
+  height: 66px;
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-content {
+  flex: 1;
+  min-height: 0;
+  padding: 20px 24px;
+  overflow: hidden;
+}
+
+.workspace {
+  width: 100%;
+  max-width: 1600px;
+  height: 100%;
+  margin: 0 auto;
+
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 16px;
+}
+
+.workspace-main {
+  min-height: 0;
+
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr) 290px;
+
+  gap: 16px;
+}
+
+/* =========================================
+   PANELS
+========================================= */
+
+.panel {
+  background: var(--panel-bg);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 16px;
-  min-width: 0;
+  box-shadow: var(--shadow-panel);
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 19px;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.panel-description {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* =========================================
+   VISUALIZATION
+========================================= */
+
+.visualization-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.visualization-body {
+  flex: 1;
+  min-height: 0;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.plot-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--plot-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  overflow: hidden;
 }
 
 .plot-heading {
   display: flex;
   justify-content: space-between;
-  color: var(--text-secondary);
-  font-size: 12px;
-  margin-bottom: 12px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.plot-stage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
 }
 
 .scatter-svg {
   display: block;
   width: 100%;
-  aspect-ratio: 1;
-  max-height: 520px;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
 }
 
 .plot-legend {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 17px;
   padding-top: 12px;
 }
 
@@ -100,11 +313,331 @@ input {
   align-items: center;
   gap: 7px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .legend-dot {
   width: 9px;
   height: 9px;
   border-radius: 50%;
+}
+
+/* =========================================
+   SIDEBAR NAVIGATION
+========================================= */
+
+.sidebar-section {
+  padding: 22px 15px 0;
+}
+
+.sidebar-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.7px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.algorithm-group {
+  margin-bottom: 18px;
+}
+
+.algorithm-group-title {
+  padding: 7px 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.algorithm-item {
+  width: 100%;
+  padding: 10px 11px;
+  display: flex;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  text-align: left;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: transparent;
+  transition: all 0.15s ease;
+}
+
+.algorithm-item:hover {
+  background: var(--panel-hover);
+  color: var(--text-primary);
+}
+
+.algorithm-item.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--border-strong);
+}
+
+/* =========================================
+   CONTROLS
+========================================= */
+
+.control-panel {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px;
+}
+
+.control-section {
+  padding: 17px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.control-section:last-child {
+  border-bottom: none;
+}
+
+.control-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.control-value {
+  color: var(--accent);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.dataset-option {
+  min-width: 0;
+  padding: 11px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--panel-secondary);
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.dataset-option:hover {
+  border-color: var(--border-strong);
+  background: var(--panel-hover);
+}
+
+.dataset-option.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.dataset-option-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dataset-option.active .dataset-option-name {
+  color: var(--accent);
+}
+
+.dataset-option-description {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* =========================================
+   EXECUTION CONTROLS
+========================================= */
+
+.execution-panel {
+  padding: 16px 19px;
+}
+
+.execution-progress {
+  display: flex;
+  gap: 4px;
+  margin: 14px 0;
+}
+
+.execution-progress-item {
+  height: 4px;
+  flex: 1;
+  border-radius: 10px;
+  background: var(--border-strong);
+  transition: background 0.2s ease;
+}
+
+.execution-progress-item.completed {
+  background: var(--accent);
+}
+
+.execution-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+}
+
+.execution-button:hover:not(:disabled) {
+  background: var(--panel-hover);
+  color: var(--text-primary);
+}
+
+.execution-button.primary {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #07111c;
+}
+
+.execution-button.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: scale(1.04);
+}
+
+/* =========================================
+   HEADER / BUTTONS
+========================================= */
+
+.icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+}
+
+.icon-button:hover {
+  background: var(--panel-hover);
+  color: var(--text-primary);
+}
+
+.text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.text-button:hover {
+  color: var(--accent-hover);
+}
+
+/* =========================================
+   RESPONSIVE LAYOUT
+========================================= */
+
+@media (max-width: 1279px) {
+  .app-content {
+    overflow-y: auto;
+  }
+
+  .workspace {
+    height: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .workspace-main {
+    grid-template-columns: minmax(0, 1fr) 270px;
+  }
+
+  .visualization-panel {
+    min-height: 480px;
+  }
+
+  .plot-stage {
+    min-height: 320px;
+  }
+
+  .scatter-svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+@media (max-width: 767px) {
+  .app-shell {
+    height: 100dvh;
+  }
+
+  .app-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    box-shadow: var(--shadow-elevated);
+  }
+
+  .app-sidebar.collapsed {
+    display: none;
+  }
+
+  .app-header {
+    height: 58px;
+    min-height: 58px;
+    padding: 0 12px;
+  }
+
+  .app-content {
+    padding: 14px;
+  }
+
+  .workspace-main {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .visualization-panel {
+    min-height: 400px;
+  }
+
+  .visualization-body {
+    padding: 12px;
+  }
+
+  .plot-stage {
+    min-height: 280px;
+  }
+
+  .scatter-svg {
+    width: 100%;
+    height: auto;
+    max-height: none;
+    aspect-ratio: 1;
+  }
+
+  .control-panel {
+    overflow: visible;
+  }
+
+  .execution-panel {
+    padding: 14px;
+  }
+}
+
+/* =========================================
+   ACCESSIBILITY
+========================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

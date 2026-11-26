@@ -1,21 +1,40 @@
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useTheme } from "next-themes";
+import { useEffect } from "react";
+
 import {
-  BrainCircuit, Layers3, Activity, Sun, Moon,
-  Play, Pause, SkipBack, SkipForward, RotateCcw,
-  PanelLeftClose, Settings2, CircleHelp, Shuffle
+  BrainCircuit,
+  Layers3,
+  Activity,
+  Sun,
+  Moon,
+  Play,
+  SkipBack,
+  SkipForward,
+  RotateCcw,
+  PanelLeftClose,
+  PanelLeft,
+  Settings2,
+  CircleHelp,
+  Shuffle,
+  ChevronDown,
+  SlidersHorizontal,
+  Database,
 } from "lucide-react";
 
 import ScatterPlot from "@/components/visualizations/ScatterPlot";
+
 import {
   generateDataset,
-  DatasetName
+  type DatasetName,
 } from "@/lib/datasets/generateDataset";
 
-import { useTheme } from "next-themes";
-
+// =============================================
+// TYPES AND CONFIGURATION
+// =============================================
 
 const algorithms = [
   { name: "CART", group: "Classification" },
@@ -23,9 +42,22 @@ const algorithms = [
   { name: "KNN", group: "Classification" },
   { name: "SVM", group: "Classification" },
   { name: "Naive Bayes", group: "Classification" },
+
   { name: "K-Means", group: "Clustering" },
+
   { name: "Linear Regression", group: "Regression" },
-  { name: "PCA", group: "Dimensionality Reduction" },
+
+  {
+    name: "PCA",
+    group: "Dimensionality Reduction",
+  },
+];
+
+const algorithmGroups = [
+  "Classification",
+  "Clustering",
+  "Regression",
+  "Dimensionality Reduction",
 ];
 
 const datasets: {
@@ -33,12 +65,36 @@ const datasets: {
   label: string;
   description: string;
 }[] = [
-    { name: "blobs", label: "Blobs", description: "Gaussian clusters" },
-    { name: "moons", label: "Moons", description: "Nonlinear separation" },
-    { name: "circles", label: "Circles", description: "Concentric rings" },
-    { name: "spiral", label: "Spiral", description: "Interlocking spirals" },
-    { name: "linear", label: "Linear", description: "Linear separation" },
-    { name: "xor", label: "XOR", description: "Exclusive OR pattern" },
+    {
+      name: "blobs",
+      label: "Blobs",
+      description: "Gaussian clusters",
+    },
+    {
+      name: "moons",
+      label: "Moons",
+      description: "Nonlinear separation",
+    },
+    {
+      name: "circles",
+      label: "Circles",
+      description: "Concentric rings",
+    },
+    {
+      name: "spiral",
+      label: "Spiral",
+      description: "Interlocking spirals",
+    },
+    {
+      name: "linear",
+      label: "Linear",
+      description: "Linear separation",
+    },
+    {
+      name: "xor",
+      label: "XOR",
+      description: "Exclusive OR",
+    },
   ];
 
 const executionSteps = [
@@ -49,50 +105,87 @@ const executionSteps = [
   "Evaluate results",
 ];
 
-export default function Home() {
-  const [algorithm, setAlgorithm] = useState("K-Means");
-  const [dataset, setDataset] = useState<DatasetName>("blobs");
+// =============================================
+// MAIN COMPONENT
+// =============================================
 
-  const [samples, setSamples] = useState(200);
-  const [noise, setNoise] = useState(0.05);
-  const [seed, setSeed] = useState(42);
+export default function Home() {
+  // -------------------------------------------
+  // THEME
+  // -------------------------------------------
 
   const { theme, setTheme } = useTheme();
+
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // -------------------------------------------
+  // APPLICATION STATE
+  // -------------------------------------------
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const [playing, setPlaying] = useState(false);
-  const [step, setStep] = useState(0);
+  const [algorithm, setAlgorithm] = useState("K-Means");
+
+  // -------------------------------------------
+  // DATASET STATE
+  // -------------------------------------------
+
+  const [dataset, setDataset] =
+    useState<DatasetName>("blobs");
+
+  const [samples, setSamples] = useState(200);
+
+  const [noise, setNoise] = useState(0.05);
+
+  const [seed, setSeed] = useState(42);
+
+  // -------------------------------------------
+  // ALGORITHM PARAMETERS
+  // -------------------------------------------
 
   const [clusters, setClusters] = useState(3);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("ml-theme");
+  // -------------------------------------------
+  // EXECUTION STATE
+  // -------------------------------------------
 
-    if (saved === "light" || saved === "dark") {
-      setTheme(saved);
-    }
-  }, []);
+  const [step, setStep] = useState(0);
 
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem("ml-theme", theme);
-  }, [theme]);
+  // -------------------------------------------
+  // DATA GENERATION
+  // -------------------------------------------
 
-  const data = useMemo(
-    () => generateDataset({
+  const data = useMemo(() => {
+    return generateDataset({
       type: dataset,
       samples,
       noise,
       seed,
-    }),
-    [dataset, samples, noise, seed]
-  );
+    });
+  }, [dataset, samples, noise, seed]);
 
-  const showLabels = !["K-Means", "PCA"].includes(algorithm);
+  // -------------------------------------------
+  // VISUALIZATION SETTINGS
+  // -------------------------------------------
+
+  const showLabels = [
+    "CART",
+    "C4.5",
+    "KNN",
+    "SVM",
+    "Naive Bayes",
+  ].includes(algorithm);
+
+  // -------------------------------------------
+  // HELPERS
+  // -------------------------------------------
 
   const resetExecution = () => {
     setStep(0);
-    setPlaying(false);
   };
 
   const selectAlgorithm = (name: string) => {
@@ -105,467 +198,663 @@ export default function Home() {
     resetExecution();
   };
 
-  const regenerate = () => {
-    setSeed(s => s + 1);
+  const regenerateDataset = () => {
+    setSeed(previous => previous + 1);
     resetExecution();
   };
 
-  const groups = [
-    "Classification",
-    "Clustering",
-    "Regression",
-    "Dimensionality Reduction",
-  ];
-
-  const currentStep = Math.min(step, executionSteps.length - 1);
-
-  const surface = {
-    backgroundColor: "var(--panel-bg)",
-    borderColor: "var(--border)",
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
   };
 
+  // -------------------------------------------
+  // CURRENT DATASET INFORMATION
+  // -------------------------------------------
+
+  const currentDataset = datasets.find(
+    item => item.name === dataset
+  );
+
+  // =============================================
+  // RENDER
+  // =============================================
+
   return (
-    <main
-      className="min-h-screen flex"
-      style={{
-        backgroundColor: "var(--app-bg)",
-        color: "var(--text-primary)",
-      }}
-    >
-      {/* Sidebar */}
+    <main className="app-shell">
+
+      {/* =====================================
+          MOBILE SIDEBAR BACKDROP
+      ====================================== */}
+
       {sidebarOpen && (
-        <aside
-          className="w-[245px] shrink-0 border-r flex flex-col min-h-screen"
-          style={{
-            backgroundColor: "var(--sidebar-bg)",
-            borderColor: "var(--border)",
-          }}
+        <button
+          className="sidebar-backdrop"
+          aria-label="Close navigation"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* =====================================
+          SIDEBAR
+      ====================================== */}
+
+      <aside
+        className={`app-sidebar ${sidebarOpen ? "" : "collapsed"
+          }`}
+      >
+
+        {/* Logo */}
+
+        <div
+          className="h-[66px] px-5 flex items-center justify-between border-b shrink-0"
+          style={{ borderColor: "var(--border)" }}
         >
-          <div
-            className="h-[70px] flex items-center gap-3 px-5 border-b"
-            style={{ borderColor: "var(--border)" }}
-          >
-            <div className="h-9 w-9 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: "var(--accent-soft)" }}>
-              <BrainCircuit size={21} style={{ color: "var(--accent)" }} />
-            </div>
-
-            <div>
-              <div className="font-semibold">ML Laboratory</div>
-              <div className="text-[10px] tracking-widest uppercase"
-                style={{ color: "var(--text-muted)" }}>
-                Interactive learning
-              </div>
-            </div>
-          </div>
-
-          <div className="px-4 pt-6">
-            <div className="text-[10px] uppercase tracking-widest mb-3"
-              style={{ color: "var(--text-muted)" }}>
-              Workspace
-            </div>
+          <div className="flex items-center gap-3">
 
             <div
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm"
+              className="w-9 h-9 rounded-xl flex items-center justify-center"
               style={{
-                backgroundColor: "var(--accent-soft)",
+                background: "var(--accent-soft)",
                 color: "var(--accent)",
               }}
             >
-              <Layers3 size={17} />
-              Algorithm Explorer
+              <BrainCircuit size={21} />
             </div>
+
+            <div>
+              <div className="text-sm font-semibold">
+                ML Laboratory
+              </div>
+
+              <div
+                className="text-[9px] tracking-[1.6px] uppercase mt-0.5"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Interactive Learning
+              </div>
+            </div>
+
           </div>
 
-          <div className="px-4 pt-7 flex-1">
-            <div className="text-[10px] uppercase tracking-widest mb-4"
-              style={{ color: "var(--text-muted)" }}>
+          <button
+            className="icon-button md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <PanelLeftClose size={17} />
+          </button>
+
+        </div>
+
+        {/* Navigation */}
+
+        <div className="flex-1 overflow-y-auto">
+
+          <div className="sidebar-section">
+
+            <div className="sidebar-label">
+              Workspace
+            </div>
+
+            <button className="algorithm-item active">
+              <Layers3 size={16} className="mr-3" />
+              Algorithm Explorer
+            </button>
+
+          </div>
+
+          <div className="sidebar-section">
+
+            <div className="sidebar-label">
               Algorithms
             </div>
 
-            {groups.map(group => (
-              <div key={group} className="mb-5">
-                <div className="text-xs mb-2 px-2"
-                  style={{ color: "var(--text-muted)" }}>
+            {algorithmGroups.map(group => (
+
+              <div key={group} className="algorithm-group">
+
+                <div className="algorithm-group-title">
                   {group}
                 </div>
 
-                {algorithms.filter(a => a.group === group).map(a => (
-                  <button
-                    key={a.name}
-                    onClick={() => selectAlgorithm(a.name)}
-                    className="w-full text-left px-3 py-2.5 rounded-lg text-sm mb-1 border transition-all"
-                    style={{
-                      backgroundColor: algorithm === a.name
-                        ? "var(--accent-soft)"
-                        : "transparent",
-                      color: algorithm === a.name
-                        ? "var(--accent)"
-                        : "var(--text-secondary)",
-                      borderColor: algorithm === a.name
-                        ? "var(--accent)"
-                        : "transparent",
-                    }}
-                  >
-                    {a.name}
-                  </button>
-                ))}
+                {algorithms
+                  .filter(item => item.group === group)
+                  .map(item => (
+
+                    <button
+                      key={item.name}
+                      onClick={() => selectAlgorithm(item.name)}
+                      className={`algorithm-item ${algorithm === item.name
+                          ? "active"
+                          : ""
+                        }`}
+                    >
+                      {item.name}
+                    </button>
+
+                  ))}
+
               </div>
+
             ))}
+
           </div>
 
-          <div className="p-4 border-t text-xs flex items-center gap-2"
-            style={{
-              borderColor: "var(--border)",
-              color: "var(--text-muted)",
-            }}>
-            <Activity size={14} style={{ color: "#34d399" }} />
-            Browser-side computation
-          </div>
-        </aside>
-      )}
+        </div>
 
-      {/* Main workspace */}
-      <section className="flex-1 min-w-0 flex flex-col">
-        {/* Header */}
-        <header
-          className="h-[70px] shrink-0 border-b flex items-center justify-between px-5 lg:px-7"
+        {/* Footer */}
+
+        <div
+          className="px-5 py-4 border-t flex items-center gap-2 text-[11px] shrink-0"
           style={{
-            backgroundColor: "var(--panel-bg)",
             borderColor: "var(--border)",
+            color: "var(--text-muted)",
           }}
         >
-          <div className="flex items-center gap-4">
+          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+
+          All computations run locally
+
+        </div>
+
+      </aside>
+
+      {/* =====================================
+          MAIN CONTENT
+      ====================================== */}
+
+      <section className="app-main">
+
+        {/* =================================
+            HEADER
+        ================================== */}
+
+        <header className="app-header">
+
+          <div className="flex items-center gap-4 min-w-0">
+
             <button
+              className="icon-button"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              style={{ color: "var(--text-secondary)" }}
+              aria-label="Toggle sidebar"
             >
-              <PanelLeftClose size={19} />
+              {sidebarOpen
+                ? <PanelLeftClose size={19} />
+                : <PanelLeft size={19} />
+              }
             </button>
 
-            <div>
-              <div className="text-sm font-medium">{algorithm}</div>
-              <div className="text-[11px]"
-                style={{ color: "var(--text-muted)" }}>
+            <div className="min-w-0">
+
+              <div className="text-sm font-medium truncate">
+                {algorithm}
+              </div>
+
+              <div
+                className="text-[10px] mt-0.5 truncate"
+                style={{ color: "var(--text-muted)" }}
+              >
                 Interactive algorithm visualization
               </div>
+
             </div>
+
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:flex items-center gap-2 text-xs"
-              style={{ color: "var(--text-muted)" }}>
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+
+            <div
+              className="hidden sm:flex items-center gap-2 text-[11px]"
+              style={{ color: "var(--text-muted)" }}
+            >
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              Local execution
-            </span>
+              Local environment
+            </div>
+
+            {/* Theme toggle */}
 
             <button
-              onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
-              className="p-2 rounded-lg hover:bg-black/5"
+              className="icon-button"
+              onClick={toggleTheme}
               title="Toggle theme"
-              style={{ color: "var(--text-secondary)" }}
+              aria-label="Toggle theme"
             >
-              {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
+              {mounted ? (
+                theme === "dark"
+                  ? <Sun size={19} />
+                  : <Moon size={19} />
+              ) : (
+                <Sun size={19} />
+              )}
             </button>
 
             <button
-              className="p-2"
-              style={{ color: "var(--text-secondary)" }}
+              className="icon-button"
+              title="Help"
+              aria-label="Help"
             >
               <CircleHelp size={18} />
             </button>
 
             <button
-              className="p-2"
-              style={{ color: "var(--text-secondary)" }}
+              className="icon-button"
+              title="Settings"
+              aria-label="Settings"
             >
               <Settings2 size={18} />
             </button>
+
           </div>
+
         </header>
 
-        <div className="flex-1 p-5 lg:p-7 overflow-auto">
-          <div className="max-w-[1500px] mx-auto">
+        {/* =================================
+            WORKSPACE
+        ================================== */}
 
-            {/* Title */}
-            <div className="mb-6">
-              <h1 className="text-xl font-semibold">
-                Algorithm Workspace
-              </h1>
-              <p className="text-xs mt-1"
-                style={{ color: "var(--text-muted)" }}>
-                Explore how machine learning algorithms work.
-              </p>
-            </div>
+        <div className="app-content">
 
-            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_290px] gap-5">
+          <div className="workspace">
 
-              {/* Main visualization */}
-              <div
-                className="rounded-xl border p-5 min-w-0"
-                style={surface}
-              >
-                <div className="flex justify-between items-center mb-5">
+            {/* =================================
+                MAIN VISUALIZATION + CONTROLS
+            ================================== */}
+
+            <div className="workspace-main">
+
+              {/* ---------------------------------
+                  VISUALIZATION PANEL
+              ---------------------------------- */}
+
+              <section className="panel visualization-panel">
+
+                <div className="panel-header">
+
                   <div>
-                    <h2 className="text-sm font-medium">Dataset Visualization</h2>
-                    <p className="text-xs mt-1"
-                      style={{ color: "var(--text-muted)" }}>
-                      {datasets.find(d => d.name === dataset)?.description}
-                    </p>
+                    <div className="panel-title">
+                      Visualization
+                    </div>
+
+                    <div className="panel-description">
+                      Dataset: {currentDataset?.label}
+                    </div>
                   </div>
 
                   <button
-                    onClick={regenerate}
-                    className="flex items-center gap-2 text-xs"
-                    style={{ color: "var(--accent)" }}
+                    className="text-button"
+                    onClick={regenerateDataset}
                   >
                     <Shuffle size={14} />
                     Regenerate
                   </button>
+
                 </div>
 
-                <ScatterPlot
-                  points={data.points}
-                  showLabels={showLabels}
-                  title={dataset.toUpperCase()}
-                />
+                <div className="visualization-body">
 
-                <div className="mt-4 text-[11px]"
-                  style={{ color: "var(--text-muted)" }}>
-                  Seed: {seed} · {samples} samples · Noise: {noise.toFixed(2)}
+                  <ScatterPlot
+                    points={data.points}
+                    showLabels={showLabels}
+                    title={currentDataset?.label ?? "Dataset"}
+                  />
+
+                  <div
+                    className="flex justify-between items-center flex-wrap gap-2 mt-3 text-[10px]"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+
+                    <div className="flex gap-3 flex-wrap">
+
+                      <span>
+                        {samples} samples
+                      </span>
+
+                      <span>
+                        2 features
+                      </span>
+
+                      <span>
+                        Seed: {seed}
+                      </span>
+
+                    </div>
+
+                    <span>
+                      {showLabels
+                        ? "Ground truth labels"
+                        : algorithm === "PCA"
+                          ? "Unlabeled projection view"
+                          : "Unlabeled dataset view"
+                      }
+                    </span>
+
+                  </div>
+
                 </div>
-              </div>
 
-              {/* Dataset controls */}
-              <aside
-                className="rounded-xl border p-5"
-                style={surface}
-              >
-                <h2 className="text-sm font-medium mb-5">
-                  Dataset Generator
-                </h2>
+              </section>
 
-                <div className="grid grid-cols-2 gap-2 mb-6">
-                  {datasets.map(d => (
+              {/* ---------------------------------
+                  CONTROL PANEL
+              ---------------------------------- */}
+
+              <aside className="panel control-panel">
+
+                {/* Dataset generator */}
+
+                <div className="flex items-center justify-between mb-4">
+
+                  <div className="panel-title">
+                    Dataset Generator
+                  </div>
+
+                  <Database
+                    size={16}
+                    style={{ color: "var(--accent)" }}
+                  />
+
+                </div>
+
+                {/* Dataset options */}
+
+                <div className="grid grid-cols-2 gap-2">
+
+                  {datasets.map(item => (
+
                     <button
-                      key={d.name}
-                      onClick={() => selectDataset(d.name)}
-                      className="text-left rounded-lg p-3 border transition-all"
-                      style={{
-                        backgroundColor: dataset === d.name
-                          ? "var(--accent-soft)"
-                          : "var(--panel-secondary)",
-                        borderColor: dataset === d.name
-                          ? "var(--accent)"
-                          : "var(--border)",
-                      }}
+                      key={item.name}
+                      onClick={() => selectDataset(item.name)}
+                      className={`dataset-option ${dataset === item.name ? "active" : ""
+                        }`}
                     >
-                      <div className="text-xs font-medium"
-                        style={{
-                          color: dataset === d.name
-                            ? "var(--accent)"
-                            : "var(--text-primary)",
-                        }}>
-                        {d.label}
+
+                      <div className="dataset-option-name">
+                        {item.label}
                       </div>
-                      <div className="text-[10px] mt-1"
-                        style={{ color: "var(--text-muted)" }}>
-                        {d.description}
+
+                      <div className="dataset-option-description">
+                        {item.description}
                       </div>
+
                     </button>
+
                   ))}
+
                 </div>
 
-                <div className="border-t pt-5 space-y-6"
-                  style={{ borderColor: "var(--border)" }}>
+                {/* Dataset parameters */}
 
-                  <div>
-                    <label className="flex justify-between text-xs mb-3">
-                      Number of samples
-                      <span style={{ color: "var(--accent)" }}>{samples}</span>
+                <div className="control-section">
+
+                  <div className="flex items-center gap-2 mb-4">
+
+                    <SlidersHorizontal
+                      size={14}
+                      style={{ color: "var(--accent)" }}
+                    />
+
+                    <div className="text-xs font-semibold">
+                      Parameters
+                    </div>
+
+                  </div>
+
+                  {/* Samples */}
+
+                  <div className="mb-6">
+
+                    <label className="control-label">
+
+                      <span>Number of samples</span>
+
+                      <span className="control-value">
+                        {samples}
+                      </span>
+
                     </label>
+
                     <input
                       type="range"
                       min="50"
                       max="1000"
                       step="50"
                       value={samples}
-                      onChange={e => setSamples(Number(e.target.value))}
-                      className="w-full accent-cyan-500"
+                      onChange={event => {
+                        setSamples(Number(event.target.value));
+                        resetExecution();
+                      }}
                     />
+
                   </div>
 
+                  {/* Noise */}
+
                   <div>
-                    <label className="flex justify-between text-xs mb-3">
-                      Noise
-                      <span style={{ color: "var(--accent)" }}>
+
+                    <label className="control-label">
+
+                      <span>Noise</span>
+
+                      <span className="control-value">
                         {noise.toFixed(2)}
                       </span>
+
                     </label>
+
                     <input
                       type="range"
                       min="0"
                       max="0.5"
                       step="0.01"
                       value={noise}
-                      onChange={e => setNoise(Number(e.target.value))}
-                      className="w-full accent-cyan-500"
+                      onChange={event => {
+                        setNoise(Number(event.target.value));
+                        resetExecution();
+                      }}
                     />
-                  </div>
 
-                  {algorithm === "K-Means" && (
-                    <div>
-                      <label className="flex justify-between text-xs mb-3">
-                        Number of clusters
-                        <span style={{ color: "var(--accent)" }}>{clusters}</span>
-                      </label>
-                      <input
-                        type="range"
-                        min="2"
-                        max="8"
-                        value={clusters}
-                        onChange={e => {
-                          setClusters(Number(e.target.value));
-                          resetExecution();
-                        }}
-                        className="w-full accent-cyan-500"
-                      />
-                    </div>
-                  )}
-
-                  <div className="border-t pt-5"
-                    style={{ borderColor: "var(--border)" }}>
-                    <div className="text-xs font-medium mb-3">
-                      Dataset information
-                    </div>
-
-                    {[
-                      ["Type", dataset],
-                      ["Samples", samples],
-                      ["Features", 2],
-                      ["Random seed", seed],
-                      ["Algorithm", algorithm],
-                    ].map(([label, value]) => (
-                      <div
-                        key={label}
-                        className="flex justify-between py-2 text-xs border-b"
-                        style={{ borderColor: "var(--border)" }}
-                      >
-                        <span style={{ color: "var(--text-muted)" }}>{label}</span>
-                        <span>{value}</span>
-                      </div>
-                    ))}
                   </div>
 
                 </div>
+
+                {/* Algorithm parameters */}
+
+                {algorithm === "K-Means" && (
+
+                  <div className="control-section">
+
+                    <div className="text-xs font-semibold mb-4">
+                      K-Means Parameters
+                    </div>
+
+                    <label className="control-label">
+
+                      <span>Number of clusters (K)</span>
+
+                      <span className="control-value">
+                        {clusters}
+                      </span>
+
+                    </label>
+
+                    <input
+                      type="range"
+                      min="2"
+                      max="8"
+                      step="1"
+                      value={clusters}
+                      onChange={event => {
+                        setClusters(Number(event.target.value));
+                        resetExecution();
+                      }}
+                    />
+
+                  </div>
+
+                )}
+
+                {/* Dataset information */}
+
+                <div className="control-section">
+
+                  <div className="text-xs font-semibold mb-3">
+                    Dataset Information
+                  </div>
+
+                  {[
+                    ["Dataset", currentDataset?.label ?? dataset],
+                    ["Samples", samples],
+                    ["Features", 2],
+                    ["Random seed", seed],
+                    ["Noise", noise.toFixed(2)],
+                  ].map(([label, value]) => (
+
+                    <div
+                      key={label}
+                      className="flex justify-between py-2 border-b text-[11px]"
+                      style={{ borderColor: "var(--border)" }}
+                    >
+
+                      <span style={{ color: "var(--text-muted)" }}>
+                        {label}
+                      </span>
+
+                      <span className="font-medium">
+                        {value}
+                      </span>
+
+                    </div>
+
+                  ))}
+
+                </div>
+
+                {/* Status */}
+
+                <div className="pt-4">
+
+                  <div className="text-xs font-semibold mb-2">
+                    Execution Status
+                  </div>
+
+                  <div
+                    className="text-[11px]"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Ready to start
+                  </div>
+
+                  <div className="text-[10px] mt-2">
+                    Algorithm engine not connected yet.
+                  </div>
+
+                </div>
+
               </aside>
+
             </div>
 
-            {/* Execution controls */}
-            <div
-              className="rounded-xl border p-5 mt-5"
-              style={surface}
-            >
-              <div className="flex justify-between items-center mb-5">
+            {/* =================================
+                EXECUTION PANEL
+            ================================== */}
+
+            <section className="panel execution-panel">
+
+              <div className="flex items-center justify-between">
+
                 <div>
-                  <h2 className="text-sm font-medium">
+
+                  <div className="panel-title">
                     Algorithm Execution
-                  </h2>
-                  <p className="text-xs mt-1"
-                    style={{ color: "var(--text-muted)" }}>
+                  </div>
+
+                  <div className="panel-description">
                     Step {step} / {executionSteps.length}
-                  </p>
+                  </div>
+
                 </div>
 
                 <button
+                  className="text-button"
                   onClick={resetExecution}
-                  className="flex items-center gap-2 text-xs"
-                  style={{ color: "var(--text-secondary)" }}
                 >
                   <RotateCcw size={14} />
                   Reset
                 </button>
+
               </div>
 
-              <div className="flex gap-1 mb-5">
-                {executionSteps.map((s, i) => (
-                  <button
-                    key={s}
-                    title={s}
-                    onClick={() => {
-                      setStep(i + 1);
-                      setPlaying(false);
-                    }}
-                    className="h-1 flex-1 rounded-full"
-                    style={{
-                      backgroundColor: i < step
-                        ? "var(--accent)"
-                        : "var(--border)",
-                    }}
+              {/* Progress */}
+
+              <div className="execution-progress">
+
+                {executionSteps.map((item, index) => (
+
+                  <div
+                    key={item}
+                    className={`execution-progress-item ${index < step ? "completed" : ""
+                      }`}
+                    title={item}
                   />
+
                 ))}
+
               </div>
 
-              <div className="flex justify-center items-center gap-4">
+              {/* Playback */}
+
+              <div className="flex items-center justify-center gap-3">
+
                 <button
-                  onClick={() => {
-                    setStep(0);
-                    setPlaying(false);
-                  }}
-                  style={{ color: "var(--text-secondary)" }}
+                  className="execution-button"
+                  disabled
+                  aria-label="First step"
                 >
-                  <SkipBack size={19} />
+                  <SkipBack size={18} />
                 </button>
 
                 <button
-                  onClick={() => {
-                    setStep(s => Math.max(0, s - 1));
-                    setPlaying(false);
-                  }}
-                  style={{ color: "var(--text-secondary)" }}
+                  className="execution-button"
+                  disabled
+                  aria-label="Previous step"
                 >
                   <RotateCcw size={17} />
                 </button>
 
                 <button
-                  onClick={() => setPlaying(p => !p)}
-                  className="w-11 h-11 rounded-full flex items-center justify-center"
-                  style={{
-                    backgroundColor: "var(--accent)",
-                    color: "#07111c",
-                  }}
+                  className="execution-button primary"
+                  disabled
+                  aria-label="Play execution"
                 >
-                  {playing
-                    ? <Pause size={18} />
-                    : <Play size={18} fill="currentColor" />
-                  }
+                  <Play size={18} fill="currentColor" />
                 </button>
 
                 <button
-                  onClick={() => {
-                    setStep(s => Math.min(executionSteps.length, s + 1));
-                    setPlaying(false);
-                  }}
-                  style={{ color: "var(--text-secondary)" }}
+                  className="execution-button"
+                  disabled
+                  aria-label="Next step"
                 >
-                  <SkipForward size={19} />
+                  <SkipForward size={18} />
                 </button>
+
               </div>
 
-              <div className="text-center text-xs mt-4"
-                style={{ color: "var(--text-muted)" }}>
-                {executionSteps[currentStep]}
+              <div
+                className="text-center text-[10px] mt-2"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Execution history will be available after
+                algorithm integration.
+
               </div>
 
-              <p className="text-center text-[10px] mt-2"
-                style={{ color: "var(--text-muted)" }}>
-                Execution engine integration is the next development stage.
-              </p>
-            </div>
+            </section>
 
           </div>
+
         </div>
+
       </section>
+
     </main>
   );
 }

@@ -5,7 +5,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "ML Laboratory",
-  description: "Interactive Machine Learning Algorithm Visualizer",
+  description:
+    "An interactive laboratory for learning machine learning algorithms.",
 };
 
 export default function RootLayout({
@@ -16,7 +17,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
