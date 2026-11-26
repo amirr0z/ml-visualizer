@@ -1,17 +1,16 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
-import { useEffect } from "react";
 
 import {
   BrainCircuit,
   Layers3,
-  Activity,
   Sun,
   Moon,
   Play,
+  Pause,
   SkipBack,
   SkipForward,
   RotateCcw,
@@ -20,9 +19,10 @@ import {
   Settings2,
   CircleHelp,
   Shuffle,
-  ChevronDown,
   SlidersHorizontal,
   Database,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import ScatterPlot from "@/components/visualizations/ScatterPlot";
@@ -32,132 +32,96 @@ import {
   type DatasetName,
 } from "@/lib/datasets/generateDataset";
 
+import {
+  runAlgorithm,
+} from "@/lib/algorithms/engine";
+
+import {
+  DEFAULT_PARAMETERS,
+  type AlgorithmName,
+  type AlgorithmParameters,
+} from "@/lib/algorithms/types";
+
 // =============================================
-// TYPES AND CONFIGURATION
+// CONFIGURATION
 // =============================================
 
-const algorithms = [
-  { name: "CART", group: "Classification" },
-  { name: "C4.5", group: "Classification" },
-  { name: "KNN", group: "Classification" },
-  { name: "SVM", group: "Classification" },
-  { name: "Naive Bayes", group: "Classification" },
-
-  { name: "K-Means", group: "Clustering" },
-
-  { name: "Linear Regression", group: "Regression" },
-
+const groups = [
   {
-    name: "PCA",
-    group: "Dimensionality Reduction",
+    name: "Classification",
+    algorithms: [
+      "CART",
+      "C4.5",
+      "KNN",
+      "SVM",
+      "Naive Bayes",
+    ],
+  },
+  {
+    name: "Clustering",
+    algorithms: ["K-Means"],
+  },
+  {
+    name: "Regression",
+    algorithms: ["Linear Regression"],
+  },
+  {
+    name: "Dimensionality Reduction",
+    algorithms: ["PCA"],
   },
 ];
 
-const algorithmGroups = [
-  "Classification",
-  "Clustering",
-  "Regression",
-  "Dimensionality Reduction",
-];
+const datasets = [
+  { name: "blobs", label: "Blobs", description: "Gaussian clusters" },
+  { name: "moons", label: "Moons", description: "Nonlinear separation" },
+  { name: "circles", label: "Circles", description: "Concentric rings" },
+  { name: "spiral", label: "Spiral", description: "Interlocking spirals" },
+  { name: "linear", label: "Linear", description: "Linear separation" },
+  { name: "xor", label: "XOR", description: "Exclusive OR" },
+] as const;
 
-const datasets: {
-  name: DatasetName;
-  label: string;
-  description: string;
-}[] = [
-    {
-      name: "blobs",
-      label: "Blobs",
-      description: "Gaussian clusters",
-    },
-    {
-      name: "moons",
-      label: "Moons",
-      description: "Nonlinear separation",
-    },
-    {
-      name: "circles",
-      label: "Circles",
-      description: "Concentric rings",
-    },
-    {
-      name: "spiral",
-      label: "Spiral",
-      description: "Interlocking spirals",
-    },
-    {
-      name: "linear",
-      label: "Linear",
-      description: "Linear separation",
-    },
-    {
-      name: "xor",
-      label: "XOR",
-      description: "Exclusive OR",
-    },
-  ];
-
-const executionSteps = [
-  "Initialize algorithm",
-  "Process dataset",
-  "Calculate model",
-  "Generate predictions",
-  "Evaluate results",
+const classificationAlgorithms: AlgorithmName[] = [
+  "CART",
+  "C4.5",
+  "KNN",
+  "SVM",
+  "Naive Bayes",
 ];
 
 // =============================================
-// MAIN COMPONENT
+// COMPONENT
 // =============================================
 
 export default function Home() {
-  // -------------------------------------------
-  // THEME
-  // -------------------------------------------
-
   const { theme, setTheme } = useTheme();
 
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // -------------------------------------------
-  // APPLICATION STATE
-  // -------------------------------------------
-
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const [algorithm, setAlgorithm] = useState("K-Means");
-
-  // -------------------------------------------
-  // DATASET STATE
-  // -------------------------------------------
+  const [algorithm, setAlgorithm] =
+    useState<AlgorithmName>("K-Means");
 
   const [dataset, setDataset] =
     useState<DatasetName>("blobs");
 
   const [samples, setSamples] = useState(200);
-
   const [noise, setNoise] = useState(0.05);
-
   const [seed, setSeed] = useState(42);
 
-  // -------------------------------------------
-  // ALGORITHM PARAMETERS
-  // -------------------------------------------
+  const [parameters, setParameters] =
+    useState<AlgorithmParameters>(DEFAULT_PARAMETERS);
 
-  const [clusters, setClusters] = useState(3);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [playing, setPlaying] = useState(false);
 
-  // -------------------------------------------
-  // EXECUTION STATE
-  // -------------------------------------------
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  const [step, setStep] = useState(0);
-
-  // -------------------------------------------
-  // DATA GENERATION
-  // -------------------------------------------
+  // =========================================
+  // DATASET
+  // =========================================
 
   const data = useMemo(() => {
     return generateDataset({
@@ -168,87 +132,127 @@ export default function Home() {
     });
   }, [dataset, samples, noise, seed]);
 
-  // -------------------------------------------
-  // VISUALIZATION SETTINGS
-  // -------------------------------------------
+  // =========================================
+  // ALGORITHM EXECUTION
+  // =========================================
 
-  const showLabels = [
-    "CART",
-    "C4.5",
-    "KNN",
-    "SVM",
-    "Naive Bayes",
-  ].includes(algorithm);
+  const result = useMemo(() => {
+    return runAlgorithm({
+      algorithm,
+      points: data.points,
+      parameters,
+      seed,
+    });
+  }, [algorithm, data, parameters, seed]);
 
-  // -------------------------------------------
+  const totalSteps = result.snapshots.length;
+
+  const currentSnapshot =
+    result.snapshots[
+    Math.min(currentStep, totalSteps - 1)
+    ];
+
+  // =========================================
+  // PLAYBACK
+  // =========================================
+
+  useEffect(() => {
+    if (!playing) return;
+
+    if (currentStep >= totalSteps - 1) {
+      setPlaying(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setCurrentStep(step => Math.min(step + 1, totalSteps - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [playing, currentStep, totalSteps]);
+
+  // =========================================
   // HELPERS
-  // -------------------------------------------
+  // =========================================
 
-  const resetExecution = () => {
-    setStep(0);
-  };
+  function updateParameter<K extends keyof AlgorithmParameters>(
+    key: K,
+    value: AlgorithmParameters[K]
+  ) {
+    setParameters(previous => ({
+      ...previous,
+      [key]: value,
+    }));
 
-  const selectAlgorithm = (name: string) => {
-    setAlgorithm(name);
+    setCurrentStep(0);
+    setPlaying(false);
+  }
+
+  function resetExecution() {
+    setCurrentStep(0);
+    setPlaying(false);
+  }
+
+  function regenerateDataset() {
+    setSeed(value => value + 1);
     resetExecution();
-  };
+  }
 
-  const selectDataset = (name: DatasetName) => {
-    setDataset(name);
+  function selectAlgorithm(value: string) {
+    setAlgorithm(value as AlgorithmName);
     resetExecution();
-  };
+  }
 
-  const regenerateDataset = () => {
-    setSeed(previous => previous + 1);
-    resetExecution();
-  };
+  function nextStep() {
+    setCurrentStep(value => Math.min(value + 1, totalSteps - 1));
+  }
 
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
+  function previousStep() {
+    setCurrentStep(value => Math.max(value - 1, 0));
+  }
 
-  // -------------------------------------------
-  // CURRENT DATASET INFORMATION
-  // -------------------------------------------
+  function togglePlay() {
+    if (currentStep >= totalSteps - 1) {
+      setCurrentStep(0);
+    }
 
-  const currentDataset = datasets.find(
-    item => item.name === dataset
+    setPlaying(value => !value);
+  }
+
+  const showLabels =
+    classificationAlgorithms.includes(algorithm);
+
+  const selectedDataset = datasets.find(
+    d => d.name === dataset
   );
 
-  // =============================================
+  // =========================================
   // RENDER
-  // =============================================
+  // =========================================
 
   return (
     <main className="app-shell">
 
-      {/* =====================================
-          MOBILE SIDEBAR BACKDROP
-      ====================================== */}
+      {/* MOBILE BACKDROP */}
 
       {sidebarOpen && (
         <button
           className="sidebar-backdrop"
-          aria-label="Close navigation"
+          aria-label="Close sidebar"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* =====================================
-          SIDEBAR
-      ====================================== */}
+      {/* SIDEBAR */}
 
-      <aside
-        className={`app-sidebar ${sidebarOpen ? "" : "collapsed"
-          }`}
-      >
-
-        {/* Logo */}
+      <aside className={`app-sidebar ${sidebarOpen ? "" : "collapsed"
+        }`}>
 
         <div
           className="h-[66px] px-5 flex items-center justify-between border-b shrink-0"
           style={{ borderColor: "var(--border)" }}
         >
+
           <div className="flex items-center gap-3">
 
             <div
@@ -285,8 +289,6 @@ export default function Home() {
 
         </div>
 
-        {/* Navigation */}
-
         <div className="flex-1 overflow-y-auto">
 
           <div className="sidebar-section">
@@ -308,30 +310,26 @@ export default function Home() {
               Algorithms
             </div>
 
-            {algorithmGroups.map(group => (
+            {groups.map(group => (
 
-              <div key={group} className="algorithm-group">
+              <div key={group.name} className="algorithm-group">
 
                 <div className="algorithm-group-title">
-                  {group}
+                  {group.name}
                 </div>
 
-                {algorithms
-                  .filter(item => item.group === group)
-                  .map(item => (
+                {group.algorithms.map(name => (
 
-                    <button
-                      key={item.name}
-                      onClick={() => selectAlgorithm(item.name)}
-                      className={`algorithm-item ${algorithm === item.name
-                          ? "active"
-                          : ""
-                        }`}
-                    >
-                      {item.name}
-                    </button>
+                  <button
+                    key={name}
+                    onClick={() => selectAlgorithm(name)}
+                    className={`algorithm-item ${algorithm === name ? "active" : ""
+                      }`}
+                  >
+                    {name}
+                  </button>
 
-                  ))}
+                ))}
 
               </div>
 
@@ -341,8 +339,6 @@ export default function Home() {
 
         </div>
 
-        {/* Footer */}
-
         <div
           className="px-5 py-4 border-t flex items-center gap-2 text-[11px] shrink-0"
           style={{
@@ -351,22 +347,16 @@ export default function Home() {
           }}
         >
           <span className="w-2 h-2 rounded-full bg-emerald-400" />
-
-          All computations run locally
-
+          Local computation
         </div>
 
       </aside>
 
-      {/* =====================================
-          MAIN CONTENT
-      ====================================== */}
+      {/* MAIN */}
 
       <section className="app-main">
 
-        {/* =================================
-            HEADER
-        ================================== */}
+        {/* HEADER */}
 
         <header className="app-header">
 
@@ -374,8 +364,7 @@ export default function Home() {
 
             <button
               className="icon-button"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              aria-label="Toggle sidebar"
+              onClick={() => setSidebarOpen(v => !v)}
             >
               {sidebarOpen
                 ? <PanelLeftClose size={19} />
@@ -390,56 +379,46 @@ export default function Home() {
               </div>
 
               <div
-                className="text-[10px] mt-0.5 truncate"
+                className="text-[10px] mt-0.5"
                 style={{ color: "var(--text-muted)" }}
               >
-                Interactive algorithm visualization
+                Interactive algorithm workspace
               </div>
 
             </div>
 
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-2">
 
             <div
-              className="hidden sm:flex items-center gap-2 text-[11px]"
+              className="hidden sm:flex items-center gap-2 text-[11px] mr-2"
               style={{ color: "var(--text-muted)" }}
             >
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              Local environment
+              Browser environment
             </div>
 
-            {/* Theme toggle */}
-
             <button
               className="icon-button"
-              onClick={toggleTheme}
-              title="Toggle theme"
+              onClick={() => setTheme(
+                theme === "dark" ? "light" : "dark"
+              )}
               aria-label="Toggle theme"
             >
-              {mounted ? (
-                theme === "dark"
+              {mounted
+                ? theme === "dark"
                   ? <Sun size={19} />
                   : <Moon size={19} />
-              ) : (
-                <Sun size={19} />
-              )}
+                : <Sun size={19} />
+              }
             </button>
 
-            <button
-              className="icon-button"
-              title="Help"
-              aria-label="Help"
-            >
+            <button className="icon-button" title="Help">
               <CircleHelp size={18} />
             </button>
 
-            <button
-              className="icon-button"
-              title="Settings"
-              aria-label="Settings"
-            >
+            <button className="icon-button" title="Settings">
               <Settings2 size={18} />
             </button>
 
@@ -447,23 +426,15 @@ export default function Home() {
 
         </header>
 
-        {/* =================================
-            WORKSPACE
-        ================================== */}
+        {/* WORKSPACE */}
 
         <div className="app-content">
 
           <div className="workspace">
 
-            {/* =================================
-                MAIN VISUALIZATION + CONTROLS
-            ================================== */}
-
             <div className="workspace-main">
 
-              {/* ---------------------------------
-                  VISUALIZATION PANEL
-              ---------------------------------- */}
+              {/* VISUALIZATION */}
 
               <section className="panel visualization-panel">
 
@@ -475,7 +446,7 @@ export default function Home() {
                     </div>
 
                     <div className="panel-description">
-                      Dataset: {currentDataset?.label}
+                      {selectedDataset?.label} · {algorithm}
                     </div>
                   </div>
 
@@ -494,7 +465,14 @@ export default function Home() {
                   <ScatterPlot
                     points={data.points}
                     showLabels={showLabels}
-                    title={currentDataset?.label ?? "Dataset"}
+                    assignments={currentSnapshot?.assignments}
+                    centroids={currentSnapshot?.centroids}
+                    regressionLine={currentSnapshot?.regressionLine}
+                    decisionSplits={currentSnapshot?.decisionSplits}
+                    highlightedPointIds={
+                      currentSnapshot?.highlightedPointIds
+                    }
+                    title={selectedDataset?.label}
                   />
 
                   <div
@@ -503,28 +481,13 @@ export default function Home() {
                   >
 
                     <div className="flex gap-3 flex-wrap">
-
-                      <span>
-                        {samples} samples
-                      </span>
-
-                      <span>
-                        2 features
-                      </span>
-
-                      <span>
-                        Seed: {seed}
-                      </span>
-
+                      <span>{samples} samples</span>
+                      <span>2 features</span>
+                      <span>Seed: {seed}</span>
                     </div>
 
                     <span>
-                      {showLabels
-                        ? "Ground truth labels"
-                        : algorithm === "PCA"
-                          ? "Unlabeled projection view"
-                          : "Unlabeled dataset view"
-                      }
+                      {currentSnapshot?.phase ?? "Ready"}
                     </span>
 
                   </div>
@@ -533,13 +496,9 @@ export default function Home() {
 
               </section>
 
-              {/* ---------------------------------
-                  CONTROL PANEL
-              ---------------------------------- */}
+              {/* PARAMETERS */}
 
               <aside className="panel control-panel">
-
-                {/* Dataset generator */}
 
                 <div className="flex items-center justify-between mb-4">
 
@@ -554,15 +513,16 @@ export default function Home() {
 
                 </div>
 
-                {/* Dataset options */}
-
                 <div className="grid grid-cols-2 gap-2">
 
                   {datasets.map(item => (
 
                     <button
                       key={item.name}
-                      onClick={() => selectDataset(item.name)}
+                      onClick={() => {
+                        setDataset(item.name);
+                        resetExecution();
+                      }}
                       className={`dataset-option ${dataset === item.name ? "active" : ""
                         }`}
                     >
@@ -581,35 +541,27 @@ export default function Home() {
 
                 </div>
 
-                {/* Dataset parameters */}
+                {/* DATASET PARAMETERS */}
 
                 <div className="control-section">
 
                   <div className="flex items-center gap-2 mb-4">
-
                     <SlidersHorizontal
                       size={14}
                       style={{ color: "var(--accent)" }}
                     />
-
                     <div className="text-xs font-semibold">
-                      Parameters
+                      Dataset Parameters
                     </div>
-
                   </div>
-
-                  {/* Samples */}
 
                   <div className="mb-6">
 
                     <label className="control-label">
-
                       <span>Number of samples</span>
-
                       <span className="control-value">
                         {samples}
                       </span>
-
                     </label>
 
                     <input
@@ -618,26 +570,21 @@ export default function Home() {
                       max="1000"
                       step="50"
                       value={samples}
-                      onChange={event => {
-                        setSamples(Number(event.target.value));
+                      onChange={e => {
+                        setSamples(Number(e.target.value));
                         resetExecution();
                       }}
                     />
 
                   </div>
 
-                  {/* Noise */}
-
                   <div>
 
                     <label className="control-label">
-
                       <span>Noise</span>
-
                       <span className="control-value">
                         {noise.toFixed(2)}
                       </span>
-
                     </label>
 
                     <input
@@ -646,8 +593,8 @@ export default function Home() {
                       max="0.5"
                       step="0.01"
                       value={noise}
-                      onChange={event => {
-                        setNoise(Number(event.target.value));
+                      onChange={e => {
+                        setNoise(Number(e.target.value));
                         resetExecution();
                       }}
                     />
@@ -656,43 +603,151 @@ export default function Home() {
 
                 </div>
 
-                {/* Algorithm parameters */}
+                {/* ALGORITHM PARAMETERS */}
 
-                {algorithm === "K-Means" && (
+                <div className="control-section">
 
-                  <div className="control-section">
-
-                    <div className="text-xs font-semibold mb-4">
-                      K-Means Parameters
-                    </div>
-
-                    <label className="control-label">
-
-                      <span>Number of clusters (K)</span>
-
-                      <span className="control-value">
-                        {clusters}
-                      </span>
-
-                    </label>
-
-                    <input
-                      type="range"
-                      min="2"
-                      max="8"
-                      step="1"
-                      value={clusters}
-                      onChange={event => {
-                        setClusters(Number(event.target.value));
-                        resetExecution();
-                      }}
-                    />
-
+                  <div className="text-xs font-semibold mb-4">
+                    {algorithm} Parameters
                   </div>
 
-                )}
+                  {algorithm === "K-Means" && (
 
-                {/* Dataset information */}
+                    <>
+                      <label className="control-label">
+                        <span>Number of clusters (K)</span>
+                        <span className="control-value">
+                          {parameters.clusters}
+                        </span>
+                      </label>
+
+                      <input
+                        type="range"
+                        min="2"
+                        max="8"
+                        value={parameters.clusters}
+                        onChange={e => updateParameter(
+                          "clusters",
+                          Number(e.target.value)
+                        )}
+                      />
+
+                      <div className="mt-4">
+
+                        <label className="control-label">
+                          Initialization
+                        </label>
+
+                        <select
+                          className="w-full rounded-lg p-2 text-xs border"
+                          style={{
+                            background: "var(--panel-secondary)",
+                            borderColor: "var(--border)",
+                            color: "var(--text-primary)",
+                          }}
+                          value={parameters.initialization}
+                          onChange={e => updateParameter(
+                            "initialization",
+                            e.target.value as "random" | "kmeans++"
+                          )}
+                        >
+                          <option value="random">Random</option>
+                          <option value="kmeans++">K-Means++</option>
+                        </select>
+
+                      </div>
+                    </>
+
+                  )}
+
+                  {algorithm === "KNN" && (
+                    <>
+                      <label className="control-label">
+                        <span>Neighbors (K)</span>
+                        <span className="control-value">
+                          {parameters.neighbors}
+                        </span>
+                      </label>
+                      <input
+                        type="range"
+                        min="1"
+                        max="20"
+                        value={parameters.neighbors}
+                        onChange={e => updateParameter(
+                          "neighbors",
+                          Number(e.target.value)
+                        )}
+                      />
+                    </>
+                  )}
+
+                  {(algorithm === "CART" || algorithm === "C4.5") && (
+                    <>
+                      <label className="control-label">
+                        <span>Maximum tree depth</span>
+                        <span className="control-value">
+                          {parameters.maxDepth}
+                        </span>
+                      </label>
+                      <input
+                        type="range"
+                        min="1"
+                        max="8"
+                        value={parameters.maxDepth}
+                        onChange={e => updateParameter(
+                          "maxDepth",
+                          Number(e.target.value)
+                        )}
+                      />
+                    </>
+                  )}
+
+                  {(algorithm === "SVM" ||
+                    algorithm === "Linear Regression") && (
+                      <>
+                        <label className="control-label">
+                          <span>Learning rate</span>
+                          <span className="control-value">
+                            {parameters.learningRate.toFixed(3)}
+                          </span>
+                        </label>
+                        <input
+                          type="range"
+                          min="0.001"
+                          max="0.1"
+                          step="0.001"
+                          value={parameters.learningRate}
+                          onChange={e => updateParameter(
+                            "learningRate",
+                            Number(e.target.value)
+                          )}
+                        />
+
+                        <div className="mt-4">
+                          <label className="control-label">
+                            <span>Training epochs</span>
+                            <span className="control-value">
+                              {parameters.epochs}
+                            </span>
+                          </label>
+                          <input
+                            type="range"
+                            min="10"
+                            max="200"
+                            step="10"
+                            value={parameters.epochs}
+                            onChange={e => updateParameter(
+                              "epochs",
+                              Number(e.target.value)
+                            )}
+                          />
+                        </div>
+                      </>
+                    )}
+
+                </div>
+
+                {/* DATASET INFORMATION */}
 
                 <div className="control-section">
 
@@ -701,11 +756,11 @@ export default function Home() {
                   </div>
 
                   {[
-                    ["Dataset", currentDataset?.label ?? dataset],
+                    ["Dataset", selectedDataset?.label ?? dataset],
                     ["Samples", samples],
                     ["Features", 2],
-                    ["Random seed", seed],
                     ["Noise", noise.toFixed(2)],
+                    ["Seed", seed],
                   ].map(([label, value]) => (
 
                     <div
@@ -713,39 +768,13 @@ export default function Home() {
                       className="flex justify-between py-2 border-b text-[11px]"
                       style={{ borderColor: "var(--border)" }}
                     >
-
                       <span style={{ color: "var(--text-muted)" }}>
                         {label}
                       </span>
-
-                      <span className="font-medium">
-                        {value}
-                      </span>
-
+                      <span>{value}</span>
                     </div>
 
                   ))}
-
-                </div>
-
-                {/* Status */}
-
-                <div className="pt-4">
-
-                  <div className="text-xs font-semibold mb-2">
-                    Execution Status
-                  </div>
-
-                  <div
-                    className="text-[11px]"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    Ready to start
-                  </div>
-
-                  <div className="text-[10px] mt-2">
-                    Algorithm engine not connected yet.
-                  </div>
 
                 </div>
 
@@ -753,24 +782,20 @@ export default function Home() {
 
             </div>
 
-            {/* =================================
-                EXECUTION PANEL
-            ================================== */}
+            {/* EXECUTION PANEL */}
 
             <section className="panel execution-panel">
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
 
                 <div>
-
                   <div className="panel-title">
                     Algorithm Execution
                   </div>
 
                   <div className="panel-description">
-                    Step {step} / {executionSteps.length}
+                    Step {currentStep + 1} / {totalSteps}
                   </div>
-
                 </div>
 
                 <button
@@ -783,30 +808,38 @@ export default function Home() {
 
               </div>
 
-              {/* Progress */}
+              {/* PROGRESS */}
 
-              <div className="execution-progress">
+              <input
+                type="range"
+                min="0"
+                max={Math.max(0, totalSteps - 1)}
+                value={currentStep}
+                onChange={e => {
+                  setCurrentStep(Number(e.target.value));
+                  setPlaying(false);
+                }}
+                className="w-full mt-4"
+                aria-label="Execution timeline"
+              />
 
-                {executionSteps.map((item, index) => (
-
-                  <div
-                    key={item}
-                    className={`execution-progress-item ${index < step ? "completed" : ""
-                      }`}
-                    title={item}
-                  />
-
-                ))}
-
+              <div className="flex items-center justify-between text-[10px] mt-1"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <span>{result.snapshots[0]?.title}</span>
+                <span>{result.snapshots[totalSteps - 1]?.title}</span>
               </div>
 
-              {/* Playback */}
+              {/* PLAYBACK */}
 
-              <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center justify-center gap-3 mt-3">
 
                 <button
                   className="execution-button"
-                  disabled
+                  onClick={() => {
+                    setCurrentStep(0);
+                    setPlaying(false);
+                  }}
                   aria-label="First step"
                 >
                   <SkipBack size={18} />
@@ -814,36 +847,149 @@ export default function Home() {
 
                 <button
                   className="execution-button"
-                  disabled
+                  onClick={previousStep}
+                  disabled={currentStep === 0}
                   aria-label="Previous step"
                 >
-                  <RotateCcw size={17} />
+                  <ChevronLeft size={18} />
                 </button>
 
                 <button
                   className="execution-button primary"
-                  disabled
-                  aria-label="Play execution"
+                  onClick={togglePlay}
+                  aria-label={playing ? "Pause" : "Play"}
                 >
-                  <Play size={18} fill="currentColor" />
+                  {playing
+                    ? <Pause size={18} />
+                    : <Play size={18} fill="currentColor" />
+                  }
                 </button>
 
                 <button
                   className="execution-button"
-                  disabled
+                  onClick={nextStep}
+                  disabled={currentStep >= totalSteps - 1}
                   aria-label="Next step"
+                >
+                  <ChevronRight size={18} />
+                </button>
+
+                <button
+                  className="execution-button"
+                  onClick={() => {
+                    setCurrentStep(totalSteps - 1);
+                    setPlaying(false);
+                  }}
+                  aria-label="Last step"
                 >
                   <SkipForward size={18} />
                 </button>
 
               </div>
 
+              {/* CURRENT STEP EXPLANATION */}
+
               <div
-                className="text-center text-[10px] mt-2"
-                style={{ color: "var(--text-muted)" }}
+                className="mt-4 pt-3 border-t"
+                style={{ borderColor: "var(--border)" }}
               >
-                Execution history will be available after
-                algorithm integration.
+
+                <div className="flex justify-between items-start gap-3">
+
+                  <div>
+                    <div className="text-xs font-semibold">
+                      {currentSnapshot?.title}
+                    </div>
+
+                    <p
+                      className="text-[11px] leading-relaxed mt-1"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      {currentSnapshot?.description}
+                    </p>
+                  </div>
+
+                  <span
+                    className="text-[10px] shrink-0 uppercase"
+                    style={{ color: "var(--accent)" }}
+                  >
+                    {currentSnapshot?.phase}
+                  </span>
+
+                </div>
+
+                {currentSnapshot?.equation && (
+                  <div
+                    className="mt-3 p-3 rounded-lg text-center font-mono text-xs"
+                    style={{
+                      background: "var(--panel-secondary)",
+                      color: "var(--accent)",
+                    }}
+                  >
+                    {currentSnapshot.equation}
+                  </div>
+                )}
+
+                {/* METRICS */}
+
+                <div className="flex flex-wrap gap-3 mt-3">
+
+                  {Object.entries(currentSnapshot?.metrics ?? {}).map(
+                    ([key, value]) => (
+
+                      <div
+                        key={key}
+                        className="rounded-lg px-3 py-2"
+                        style={{ background: "var(--panel-secondary)" }}
+                      >
+
+                        <div
+                          className="text-[9px] uppercase"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          {key.replace(/([A-Z])/g, " $1")}
+                        </div>
+
+                        <div className="text-xs font-semibold mt-1 tabular-nums">
+                          {Number.isFinite(value)
+                            ? Number(value).toFixed(4)
+                            : value}
+                        </div>
+
+                      </div>
+
+                    )
+                  )}
+
+                </div>
+
+                {/* DETAILS */}
+
+                {currentSnapshot?.details?.length ? (
+
+                  <div className="grid sm:grid-cols-2 gap-2 mt-3">
+
+                    {currentSnapshot.details.map((detail, index) => (
+
+                      <div
+                        key={index}
+                        className="flex justify-between gap-2 text-[10px] p-2 rounded"
+                        style={{ background: "var(--panel-secondary)" }}
+                      >
+                        <span style={{ color: "var(--text-muted)" }}>
+                          {detail.name}
+                        </span>
+
+                        <span className="text-right">
+                          {detail.value}
+                        </span>
+                      </div>
+
+                    ))}
+
+                  </div>
+
+                ) : null}
 
               </div>
 

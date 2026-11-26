@@ -2,33 +2,47 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-
+import type { DataPoint } from "@/lib/datasets/generateDataset";
 import type {
-    DataPoint,
-} from "@/lib/datasets/generateDataset";
+    Centroid,
+    RegressionLine,
+    DecisionSplit,
+} from "@/lib/algorithms/types";
 
-interface ScatterPlotProps {
+interface Props {
     points: DataPoint[];
     showLabels?: boolean;
     title?: string;
+    assignments?: number[];
+    centroids?: Centroid[];
+    regressionLine?: RegressionLine;
+    decisionSplits?: DecisionSplit[];
+    highlightedPointIds?: number[];
 }
 
 const COLORS = [
     "#22d3ee",
     "#a78bfa",
     "#34d399",
+    "#fb923c",
+    "#f472b6",
+    "#818cf8",
+    "#facc15",
+    "#2dd4bf",
 ];
 
 export default function ScatterPlot({
     points,
     showLabels = true,
     title = "2D Dataset",
-}: ScatterPlotProps) {
+    assignments,
+    centroids = [],
+    regressionLine,
+    decisionSplits = [],
+    highlightedPointIds = [],
+}: Props) {
     const [mounted, setMounted] = useState(false);
-
-    const rawId = useId();
-
-    const gridId = `plot-grid-${rawId.replace(/:/g, "")}`;
+    const id = useId().replace(/:/g, "");
 
     useEffect(() => {
         setMounted(true);
@@ -36,23 +50,34 @@ export default function ScatterPlot({
 
     const size = 1000;
     const padding = 65;
-    const center = size / 2;
 
-    const scale = (value: number) => {
-        return (
-            padding +
-            ((value + 1.5) / 3) *
-            (size - padding * 2)
-        );
-    };
+    const min = -1.5;
+    const max = 1.5;
 
-    const classes = Array.from(
-        new Set(points.map(point => point.label))
-    ).sort((a, b) => a - b);
+    const scale = (value: number) =>
+        padding +
+        ((value - min) / (max - min)) *
+        (size - padding * 2);
 
-    // =======================================
-    // HYDRATION FALLBACK
-    // =======================================
+    const yScale = (value: number) =>
+        size - scale(value);
+
+    const hasLine =
+        regressionLine &&
+        Number.isFinite(regressionLine.slope) &&
+        Number.isFinite(regressionLine.intercept);
+
+    const lineY1 = hasLine
+        ? regressionLine.slope * min + regressionLine.intercept
+        : 0;
+
+    const lineY2 = hasLine
+        ? regressionLine.slope * max + regressionLine.intercept
+        : 0;
+
+    const classes = Array.from(new Set(
+        points.map(p => assignments?.[p.id] ?? p.label)
+    )).sort((a, b) => a - b);
 
     if (!mounted) {
         return (
@@ -61,22 +86,10 @@ export default function ScatterPlot({
                     <span>{title}</span>
                     <span>{points.length} samples</span>
                 </div>
-
-                <div className="plot-stage">
-                    <div
-                        className="w-full h-full rounded-lg"
-                        style={{
-                            backgroundColor: "var(--plot-bg)",
-                        }}
-                    />
-                </div>
+                <div className="plot-stage" />
             </div>
         );
     }
-
-    // =======================================
-    // RENDER
-    // =======================================
 
     return (
         <div className="plot-container">
@@ -95,9 +108,10 @@ export default function ScatterPlot({
                     role="img"
                     aria-label={title}
                 >
+
                     <defs>
                         <pattern
-                            id={gridId}
+                            id={`grid-${id}`}
                             width="50"
                             height="50"
                             patternUnits="userSpaceOnUse"
@@ -111,80 +125,138 @@ export default function ScatterPlot({
                         </pattern>
                     </defs>
 
-                    {/* Background */}
-
                     <rect
                         width={size}
                         height={size}
-                        fill="url(#${gridId})"
+                        fill={`url(#grid-${id})`}
                     />
-
-                    {/* Grid */}
-
-                    <rect
-                        width={size}
-                        height={size}
-                        fill={`url(#${gridId})`}
-                    />
-
-                    {/* Vertical axis */}
 
                     <line
-                        x1={center}
+                        x1={scale(0)}
                         y1={padding}
-                        x2={center}
+                        x2={scale(0)}
                         y2={size - padding}
                         stroke="var(--plot-axis)"
                         strokeWidth="1.5"
                     />
 
-                    {/* Horizontal axis */}
-
                     <line
                         x1={padding}
-                        y1={center}
+                        y1={yScale(0)}
                         x2={size - padding}
-                        y2={center}
+                        y2={yScale(0)}
                         stroke="var(--plot-axis)"
                         strokeWidth="1.5"
                     />
 
-                    {/* Points */}
+                    {/* Regression / SVM line */}
+
+                    {hasLine && (
+                        <line
+                            x1={scale(min)}
+                            y1={yScale(lineY1)}
+                            x2={scale(max)}
+                            y2={yScale(lineY2)}
+                            stroke="#f97316"
+                            strokeWidth="4"
+                            strokeLinecap="round"
+                        />
+                    )}
+
+                    {/* Decision tree splits */}
+
+                    {decisionSplits.map((split, index) => (
+                        <line
+                            key={index}
+                            x1={split.feature === "x"
+                                ? scale(split.threshold)
+                                : padding}
+                            x2={split.feature === "x"
+                                ? scale(split.threshold)
+                                : size - padding}
+                            y1={split.feature === "x"
+                                ? padding
+                                : yScale(split.threshold)}
+                            y2={split.feature === "x"
+                                ? size - padding
+                                : yScale(split.threshold)}
+                            stroke="#f97316"
+                            strokeWidth="2"
+                            strokeDasharray="8 5"
+                            opacity={Math.max(0.3, 1 - split.depth * 0.15)}
+                        />
+                    ))}
+
+                    {/* Data points */}
 
                     {points.map(point => {
-                        const color = showLabels
-                            ? COLORS[point.label % COLORS.length]
-                            : "var(--plot-neutral)";
+                        const cluster = assignments?.[point.id];
+
+                        const color = cluster !== undefined
+                            ? COLORS[cluster % COLORS.length]
+                            : showLabels
+                                ? COLORS[point.label % COLORS.length]
+                                : "var(--plot-neutral)";
+
+                        const highlighted =
+                            highlightedPointIds.includes(point.id);
 
                         return (
                             <circle
                                 key={point.id}
                                 cx={scale(point.x)}
-                                cy={size - scale(point.y)}
-                                r="8"
+                                cy={yScale(point.y)}
+                                r={highlighted ? 12 : 8}
                                 fill={color}
-                                stroke="var(--plot-point-stroke)"
-                                strokeWidth="2"
-                                className="transition-all duration-150"
+                                stroke={highlighted
+                                    ? "#f97316"
+                                    : "var(--plot-point-stroke)"
+                                }
+                                strokeWidth={highlighted ? 4 : 2}
+                                opacity={highlighted ? 1 : 0.88}
                             >
                                 <title>
                                     Point {point.id}
-                                    {"\n"}
-                                    X: {point.x.toFixed(3)}
-                                    {"\n"}
-                                    Y: {point.y.toFixed(3)}
-                                    {showLabels
-                                        ? `\nClass: ${point.label}`
-                                        : ""}
+                                    {"\n"}X: {point.x.toFixed(4)}
+                                    {"\n"}Y: {point.y.toFixed(4)}
+                                    {"\n"}Class: {point.label}
+                                    {cluster !== undefined
+                                        ? `\nCluster: ${cluster + 1}`
+                                        : ""
+                                    }
                                 </title>
                             </circle>
                         );
                     })}
 
-                    {/* Axis labels */}
+                    {/* Centroids */}
+
+                    {centroids.map(center => (
+                        <g
+                            key={center.id}
+                            transform={`translate(${scale(center.x)}, ${yScale(center.y)})`}
+                        >
+                            <circle
+                                r="17"
+                                fill={COLORS[center.id % COLORS.length]}
+                                opacity="0.2"
+                            />
+                            <circle
+                                r="10"
+                                fill={COLORS[center.id % COLORS.length]}
+                                stroke="var(--text-primary)"
+                                strokeWidth="3"
+                            />
+                            <path
+                                d="M -5 0 H 5 M 0 -5 V 5"
+                                stroke="var(--text-primary)"
+                                strokeWidth="2"
+                            />
+                        </g>
+                    ))}
 
                     <text
-                        x={center}
+                        x={size / 2}
                         y={size - 15}
                         fill="var(--text-muted)"
                         fontSize="14"
@@ -195,40 +267,47 @@ export default function ScatterPlot({
 
                     <text
                         x="18"
-                        y={center}
+                        y={size / 2}
                         fill="var(--text-muted)"
                         fontSize="14"
                         textAnchor="middle"
-                        transform={`rotate(-90 18 ${center})`}
+                        transform={`rotate(-90 18 ${size / 2})`}
                     >
                         Feature 2
                     </text>
 
                 </svg>
+
             </div>
 
-            {/* Ground truth legend */}
+            {/* Legend */}
 
-            {showLabels && (
-                <div className="plot-legend">
-                    {classes.map(label => (
-                        <div
-                            key={label}
-                            className="legend-item"
-                        >
-                            <span
-                                className="legend-dot"
-                                style={{
-                                    backgroundColor:
-                                        COLORS[label % COLORS.length],
-                                }}
-                            />
+            <div className="plot-legend">
 
-                            Class {label}
-                        </div>
-                    ))}
-                </div>
-            )}
+                {classes.map(label => (
+                    <div key={label} className="legend-item">
+                        <span
+                            className="legend-dot"
+                            style={{
+                                backgroundColor: COLORS[label % COLORS.length],
+                            }}
+                        />
+                        {assignments
+                            ? `Cluster ${label + 1}`
+                            : `Class ${label}`}
+                    </div>
+                ))}
+
+                {centroids.length > 0 && (
+                    <div className="legend-item">
+                        <span className="legend-dot" style={{
+                            backgroundColor: "#f97316",
+                        }} />
+                        Centroids
+                    </div>
+                )}
+
+            </div>
 
         </div>
     );
