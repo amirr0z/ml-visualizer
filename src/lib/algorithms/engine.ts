@@ -8,6 +8,7 @@ import {
     AlgorithmParameters,
     Centroid,
     DecisionSplit,
+    DecisionTreeNode,
 } from "./types";
 
 // =============================================
@@ -355,12 +356,17 @@ function runKMeans(
 // CART / C4.5 DECISION TREE
 // =============================================
 
-interface TreeNode {
-    prediction: number;
-    feature?: "x" | "y";
-    threshold?: number;
-    left?: TreeNode;
-    right?: TreeNode;
+type TreeNode = DecisionTreeNode;
+function countTreeSplits(node: TreeNode): number {
+    if (!node.feature || !node.left || !node.right) return 0;
+    return 1 + countTreeSplits(node.left) + countTreeSplits(node.right);
+}
+function treePrefix(node: TreeNode, budget: number): TreeNode {
+    if (budget <= 0 || !node.feature || !node.left || !node.right) return { prediction: node.prediction };
+    const leftBudget = Math.min(countTreeSplits(node.left), budget - 1);
+    return { prediction: node.prediction, feature: node.feature, threshold: node.threshold,
+        left: treePrefix(node.left, leftBudget),
+        right: treePrefix(node.right, Math.max(0, budget - 1 - leftBudget)) };
 }
 
 function gini(points: DataPoint[]) {
@@ -584,6 +590,7 @@ function runTree(
             `Split on feature ${split.feature.toUpperCase()} at ${split.threshold.toFixed(3)}.`,
             {
                 decisionSplits: splits.slice(0, i + 1),
+                tree: treePrefix(root, i + 1),
                 equation: algorithm === "CART"
                     ? "Gini = 1 - Σ pᵢ²"
                     : "Gain Ratio = Information Gain / Split Information",
@@ -603,6 +610,7 @@ function runTree(
         {
             predictions,
             decisionSplits: splits,
+            tree: root,
             metrics: {
                 accuracy: score,
                 depth: Math.max(0, ...splits.map(s => s.depth + 1)),

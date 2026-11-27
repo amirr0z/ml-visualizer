@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { DataPoint } from "@/lib/datasets/generateDataset";
+import { RotateCcw, ChevronLeft, ChevronRight, Play, Pause } from "lucide-react";
 
 type Activation = "tanh" | "relu" | "sigmoid" | "linear";
 type Network = { weights: number[][][]; biases: number[][] };
@@ -113,17 +114,21 @@ export default function NeuralNetworkPlayground({ points }: { points: DataPoint[
       }
     }
 
-    const scale = learningRate / normalized.length;
+    const scale = Math.min(learningRate, 0.08) / normalized.length;
     next.weights.forEach((layer, l) => layer.forEach((row, j) => row.forEach((_, i) => {
-      next.weights[l][j][i] -= scale * weightGradients[l][j][i];
+      const gradient = Math.max(-5, Math.min(5, weightGradients[l][j][i]));
+      next.weights[l][j][i] = Math.max(-6, Math.min(6, next.weights[l][j][i] - scale * gradient));
     })));
     next.biases.forEach((layer, l) => layer.forEach((_, j) => {
-      next.biases[l][j] -= scale * biasGradients[l][j];
+      const gradient = Math.max(-5, Math.min(5, biasGradients[l][j]));
+      next.biases[l][j] = Math.max(-6, Math.min(6, next.biases[l][j] - scale * gradient));
     }));
 
+    const nextLoss = totalLoss / normalized.length;
+    if (!Number.isFinite(nextLoss) || next.weights.some(layer => layer.some(row => row.some(w => !Number.isFinite(w))))) { setPlaying(false); return; }
     setNetwork(next);
     setEpoch(current => current + 1);
-    setLoss(totalLoss / normalized.length);
+    setLoss(nextLoss);
   }
 
   useEffect(() => { trainRef.current = trainEpoch; });
@@ -133,6 +138,18 @@ export default function NeuralNetworkPlayground({ points }: { points: DataPoint[
     return () => window.clearInterval(timer);
   }, [playing]);
 
+  const execution = (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between"><div><div className="panel-title">Execution</div><div className="panel-description">Epoch {epoch} · {playing ? "Training" : "Paused"}</div></div><button className="text-button" onClick={() => reset()}><RotateCcw size={13} />Reset</button></div>
+      <div className="execution-compact-controls">
+        <button className="execution-button" onClick={() => reset()} aria-label="Reset"><RotateCcw size={15}/></button>
+        <button className="execution-button" onClick={trainEpoch} disabled={playing} aria-label="One epoch"><ChevronLeft size={17}/></button>
+        <button className="execution-button primary" onClick={() => setPlaying(v=>!v)} aria-label={playing?"Pause":"Train"}>{playing?<Pause size={17}/>:<Play size={17} fill="currentColor"/>}</button>
+        <button className="execution-button" onClick={trainEpoch} disabled={playing} aria-label="Next epoch"><ChevronRight size={17}/></button>
+      </div>
+      <div className="execution-step-title">{epoch===0?"Initialize network weights":"Forward pass → backpropagation → weight update"}</div>
+    </div>
+  );
   const grid = useMemo(() => {
     const cells: { x: number; y: number; value: number }[] = [];
     for (let iy = 0; iy < 30; iy++) {
@@ -185,16 +202,15 @@ export default function NeuralNetworkPlayground({ points }: { points: DataPoint[
 
   return <>
     {mounted && typeof document !== "undefined" && document.getElementById("neural-network-controls-slot") && createPortal(controls, document.getElementById("neural-network-controls-slot")!)}
+    {mounted && typeof document !== "undefined" && document.getElementById("neural-network-execution-slot") && createPortal(execution, document.getElementById("neural-network-execution-slot")!)}
     <div className="space-y-5">
       <section className="analysis-card">
-        <div className="analysis-card-title">Network architecture</div>
-        <p className="analysis-description">Each layer is fully connected to the next. Hidden layers use {activation}; the output uses sigmoid for binary classification.</p>
-        <div className="flex justify-around items-center gap-3 py-6 overflow-x-auto">
-          {layers.map((count, layer) => <div key={layer} className="flex flex-col items-center gap-2 min-w-12">
-            <span className="text-[10px] text-[var(--text-muted)]">{layer === 0 ? "Input" : layer === layers.length - 1 ? "Output" : "Hidden " + layer}</span>
-            {Array.from({ length: count }, (_, index) => <span key={index} className="w-7 h-7 rounded-full border-2 flex items-center justify-center text-[9px]" style={{ borderColor: "var(--accent)", background: "var(--accent-soft)" }}>{layer === 0 ? "x" + (index + 1) : index + 1}</span>)}
-          </div>)}
-        </div>
+        <div className="analysis-card-title">Network architecture and live weights</div>
+        <p className="analysis-description">Blue connections are positive, orange connections are negative. Labels show current weight values.</p>
+        <svg viewBox="0 0 900 340" className="w-full mt-4" role="img" aria-label="Network with live weights">
+          {layers.slice(0,-1).map((count,l)=>{const next=layers[l+1],x1=90+l*240,x2=x1+240,s1=Math.min(62,220/Math.max(1,count-1)),s2=Math.min(62,220/Math.max(1,next-1)),y1=(340-(count-1)*s1)/2,y2=(340-(next-1)*s2)/2;return <g key={l}>{Array.from({length:count},(_,i)=>Array.from({length:next},(_,j)=>{const w=network.weights[l][j][i],sx=x1+18,sy=y1+i*s1,ex=x2-18,ey=y2+j*s2;return <g key={i+"-"+j}><line x1={sx} y1={sy} x2={ex} y2={ey} stroke={w>=0?"#2788d8":"#ed8738"} strokeWidth={1+Math.min(4,Math.abs(w)*1.5)} opacity=".75"/><text x={(sx+ex)/2} y={(sy+ey)/2-3} fontSize="9" textAnchor="middle" fill="var(--text-muted)">{w.toFixed(2)}</text></g>}))}</g>})}
+          {layers.map((count,l)=>{const step=Math.min(62,220/Math.max(1,count-1)),x=90+l*240,y=(340-(count-1)*step)/2;return <g key={l}><text x={x} y="22" textAnchor="middle" fontSize="12" fill="var(--text-muted)">{l===0?"Input":l===layers.length-1?"Output":"Hidden "+l}</text>{Array.from({length:count},(_,i)=><g key={i}><circle cx={x} cy={y+i*step} r="17" fill="var(--panel-secondary)" stroke="var(--accent)" strokeWidth="2"/><text x={x} y={y+i*step+4} fontSize="10" textAnchor="middle" fill="var(--text-primary)">{l===0?"x"+(i+1):i+1}</text></g>)}</g>})}
+        </svg><div className="plot-meta"><span>Weights update after each epoch</span><span>Hidden activation: {activation}</span><span>Output: sigmoid</span></div>
       </section>
       <section className="analysis-card">
         <div className="flex flex-wrap justify-between gap-3"><div><div className="analysis-card-title">Learned decision boundary</div><p className="analysis-description">The model output updates as gradient descent trains the network.</p></div><span className="phase-pill">{playing ? "Training" : "Paused"} · Epoch {epoch}</span></div>

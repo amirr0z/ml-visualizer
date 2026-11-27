@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import ScatterPlot from "@/components/visualizations/ScatterPlot";
 import NeuralNetworkPlayground from "@/components/visualizations/NeuralNetworkPlayground";
+import DecisionTreeView from "@/components/visualizations/DecisionTreeView";
 import { generateDataset, type DatasetName } from "@/lib/datasets/generateDataset";
 import { runAlgorithm } from "@/lib/algorithms/engine";
 import { DEFAULT_PARAMETERS, type AlgorithmName, type AlgorithmParameters } from "@/lib/algorithms/types";
@@ -147,8 +148,8 @@ export default function Home() {
                 </div>
               </section>
 
-              {algorithm !== "Neural Network" && <section className="panel execution-panel execution-fixed">
-                <div className="flex items-center justify-between gap-2"><div><div className="panel-title">Execution</div><div className="panel-description">Step {currentStep + 1} of {totalSteps} · {currentSnapshot?.phase ?? "Ready"}</div></div><button className="text-button" onClick={resetExecution}><RotateCcw size={13} />Reset</button></div>
+              <section className="panel execution-panel execution-fixed">
+                {algorithm === "Neural Network" ? <div id="neural-network-execution-slot" /> : <><div className="flex items-center justify-between gap-2"><div><div className="panel-title">Execution</div><div className="panel-description">Step {currentStep + 1} of {totalSteps} · {currentSnapshot?.phase ?? "Ready"}</div></div><button className="text-button" onClick={resetExecution}><RotateCcw size={13} />Reset</button></div>
                 <input type="range" min="0" max={Math.max(0, totalSteps - 1)} value={currentStep} onChange={e => { setCurrentStep(Number(e.target.value)); setPlaying(false); }} className="w-full mt-3" aria-label="Execution timeline" />
                 <div className="execution-compact-controls">
                   <button className="execution-button" onClick={() => { setCurrentStep(0); setPlaying(false); }} aria-label="First step"><SkipBack size={16} /></button>
@@ -157,8 +158,8 @@ export default function Home() {
                   <button className="execution-button" onClick={() => setCurrentStep(v => Math.min(totalSteps - 1, v + 1))} disabled={currentStep >= totalSteps - 1} aria-label="Next step"><ChevronRight size={17} /></button>
                   <button className="execution-button" onClick={() => { setCurrentStep(totalSteps - 1); setPlaying(false); }} aria-label="Last step"><SkipForward size={16} /></button>
                 </div>
-                <div className="execution-step-title">{currentSnapshot?.title}</div>
-              </section>}
+                <div className="execution-step-title">{currentSnapshot?.title}</div></>}
+              </section>
             </aside>
 
             <section className="panel visualization-panel visualization-scroll-area">
@@ -183,6 +184,7 @@ export default function Home() {
                   <div className="analysis-card">
                     <div className="analysis-card-title">{currentSnapshot?.title ?? "Ready to execute"}</div>
                     <p className="analysis-description">{currentSnapshot?.description ?? result.summary}</p>
+                    {(algorithm === "CART" || algorithm === "C4.5") && <div className="mt-5"><div className="analysis-card-title mb-3">Constructed decision tree — step {currentStep + 1}</div><DecisionTreeView tree={currentSnapshot?.tree} /></div>}
                     {currentSnapshot?.equation && <div className="equation-block"><span>Mathematical expression</span><code>{currentSnapshot.equation}</code></div>}
                     <div className="metric-grid">
                       {Object.entries(currentSnapshot?.metrics ?? {}).map(([key, value]) => <div className="metric-card" key={key}><div className="metric-label">{key.replace(/([A-Z])/g, " $1").replace(/^./, c => c.toUpperCase())}</div><div className="metric-value">{formatMetric(value)}</div></div>)}

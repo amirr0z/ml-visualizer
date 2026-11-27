@@ -38,6 +38,14 @@ export interface DecisionSplit {
     depth: number;
 }
 
+export interface DecisionTreeNode {
+    prediction: number;
+    feature?: "x" | "y";
+    threshold?: number;
+    left?: DecisionTreeNode;
+    right?: DecisionTreeNode;
+}
+
 export interface AlgorithmSnapshot {
     index: number;
     phase: AlgorithmPhase;
@@ -53,6 +61,7 @@ export interface AlgorithmSnapshot {
     regressionLine?: RegressionLine;
 
     decisionSplits?: DecisionSplit[];
+    tree?: DecisionTreeNode;
 
     highlightedPointIds?: number[];
 
