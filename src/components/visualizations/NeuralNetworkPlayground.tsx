@@ -38,7 +38,7 @@ export default function NeuralNetworkPlayground({points,learningRate,epochs,seed
  useEffect(()=>{trainRef.current=next;});
  useEffect(()=>{if(!playing)return;const id=window.setInterval(()=>trainRef.current(),120);return()=>window.clearInterval(id);},[playing]);
  useEffect(()=>{if(step>=epochs)setPlaying(false);},[step,epochs]);
- const layers=[2,...frame.network.weights.map(l=>l.length)],grid=useMemo(()=>{const cells:{x:number;y:number;v:number}[]=[];for(let iy=0;iy<30;iy++)for(let ix=0;ix<30;ix++){const x=-2.5+ix*5/29,y=2.5-iy*5/29;cells.push({x:ix,y:iy,v:forward(frame.network,x,y,activation).out});}return cells;},[frame,activation]);
+ const layers=[2,...frame.network.weights.map(l=>l.length)],grid=useMemo(()=>{const cells:{x:number;y:number;v:number}[]=[];for(let iy=0;iy<30;iy++)for(let ix=0;ix<30;ix++){const rawX=-1.5+ix*3/29,rawY=1.5-iy*3/29;const nx=(rawX-stats.mx)/stats.sx,ny=(rawY-stats.my)/stats.sy;cells.push({x:ix,y:iy,v:forward(frame.network,nx,ny,activation).out});}return cells;},[frame,activation,stats]);
  const controls=<div className="space-y-4">
   <div><label className="control-label">Activation function</label><select className="control-select" value={activation} onChange={e=>{setActivation(e.target.value as Activation);reset();}}><option value="tanh">Tanh</option><option value="relu">ReLU</option><option value="sigmoid">Sigmoid</option><option value="linear">Linear</option></select></div>
   <div className="rounded-lg border p-3 space-y-3" style={{borderColor:"var(--border)"}}><div className="flex justify-between"><span className="text-xs font-semibold">Hidden layer configuration</span><span className="text-[10px]">{sizes.length} layers</span></div>
