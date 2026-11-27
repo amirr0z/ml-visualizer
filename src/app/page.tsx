@@ -135,7 +135,7 @@ export default function Home() {
                   <button className="text-button mt-4" onClick={() => { setSeed(v => v + 1); resetExecution(); }}><Shuffle size={14} />Regenerate samples</button>
                 </div>
                 <div className="control-section">
-                  <div className="text-xs font-semibold mb-4">{algorithm} Parameters</div>{algorithm === "Neural Network" && <div id="neural-network-controls-slot" className="space-y-4" />}
+                  <div className="text-xs font-semibold mb-4">{algorithm} Parameters</div>{algorithm === "Neural Network" && <><div id="neural-network-controls-slot" className="space-y-4" /><div className="mt-4"><label className="control-label"><span>Learning rate</span><span className="control-value">{parameters.learningRate.toFixed(3)}</span></label><input type="range" min="0.001" max="0.08" step="0.001" value={parameters.learningRate} onChange={e => updateParameter("learningRate", Number(e.target.value))} /></div><div className="mt-4"><label className="control-label"><span>Training epochs</span><span className="control-value">{parameters.epochs}</span></label><input type="range" min="10" max="500" step="10" value={parameters.epochs} onChange={e => updateParameter("epochs", Number(e.target.value))} /></div></>}
                   {algorithm === "K-Means" && <><label className="control-label"><span>Number of clusters (K)</span><span className="control-value">{parameters.clusters}</span></label><input type="range" min="2" max="8" value={parameters.clusters} onChange={e => updateParameter("clusters", Number(e.target.value))} /><div className="mt-4"><label className="control-label">Initialization</label><select className="control-select" value={parameters.initialization} onChange={e => updateParameter("initialization", e.target.value as "random" | "kmeans++")}><option value="random">Random</option><option value="kmeans++">K-Means++</option></select></div></>}
                   {algorithm === "KNN" && <><label className="control-label"><span>Neighbors (K)</span><span className="control-value">{parameters.neighbors}</span></label><input type="range" min="1" max="20" value={parameters.neighbors} onChange={e => updateParameter("neighbors", Number(e.target.value))} /></>}
                   {(algorithm === "CART" || algorithm === "C4.5") && <><label className="control-label"><span>Maximum tree depth</span><span className="control-value">{parameters.maxDepth}</span></label><input type="range" min="1" max="8" value={parameters.maxDepth} onChange={e => updateParameter("maxDepth", Number(e.target.value))} /></>}
@@ -169,7 +169,7 @@ export default function Home() {
               </div>
               <div className="visualization-scroll-content">
                 {algorithm === "Neural Network" ? (
-                  <NeuralNetworkPlayground points={data.points} />
+                  <NeuralNetworkPlayground points={data.points} learningRate={parameters.learningRate} epochs={parameters.epochs} seed={seed} />
                 ) : <>
                 <section className="viz-section">
                   <div className="viz-section-heading"><div><div className="viz-section-title">Data visualization</div><div className="panel-description">Observe how the selected algorithm changes the data representation.</div></div><button className="text-button" onClick={() => { setSeed(v => v + 1); resetExecution(); }}><Shuffle size={13} />Regenerate</button></div>
