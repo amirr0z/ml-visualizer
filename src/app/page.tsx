@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
 import {
   BrainCircuit, Layers3, Sun, Moon, Play, Pause, SkipBack, SkipForward,
-  RotateCcw, PanelLeftClose, PanelLeft, Settings2, CircleHelp, Shuffle,
+  RotateCcw, PanelLeftClose, PanelLeft, Shuffle,
   SlidersHorizontal, Database, ChevronLeft, ChevronRight, Activity,
   BookOpen, Calculator, GitBranch, BarChart3, Info,
 } from "lucide-react";
@@ -115,8 +115,6 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <div className="hidden sm:flex items-center gap-2 text-[11px] mr-2" style={{ color: "var(--text-muted)" }}><span className="w-2 h-2 rounded-full bg-emerald-400" />Browser environment</div>
             <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Toggle theme">{mounted ? theme === "dark" ? <Sun size={19} /> : <Moon size={19} /> : <Sun size={19} />}</button>
-            <button className="icon-button" title="Help"><CircleHelp size={18} /></button>
-            <button className="icon-button" title="Settings"><Settings2 size={18} /></button>
           </div>
         </header>
 
