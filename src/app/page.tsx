@@ -147,7 +147,7 @@ export default function Home() {
                 </div>
               </section>
 
-              <section className="panel execution-panel execution-fixed">
+              {algorithm !== "Neural Network" && <section className="panel execution-panel execution-fixed">
                 <div className="flex items-center justify-between gap-2"><div><div className="panel-title">Execution</div><div className="panel-description">Step {currentStep + 1} of {totalSteps} · {currentSnapshot?.phase ?? "Ready"}</div></div><button className="text-button" onClick={resetExecution}><RotateCcw size={13} />Reset</button></div>
                 <input type="range" min="0" max={Math.max(0, totalSteps - 1)} value={currentStep} onChange={e => { setCurrentStep(Number(e.target.value)); setPlaying(false); }} className="w-full mt-3" aria-label="Execution timeline" />
                 <div className="execution-compact-controls">
@@ -158,7 +158,7 @@ export default function Home() {
                   <button className="execution-button" onClick={() => { setCurrentStep(totalSteps - 1); setPlaying(false); }} aria-label="Last step"><SkipForward size={16} /></button>
                 </div>
                 <div className="execution-step-title">{currentSnapshot?.title}</div>
-              </section>
+              </section>}
             </aside>
 
             <section className="panel visualization-panel visualization-scroll-area">
@@ -167,10 +167,13 @@ export default function Home() {
                 <span className="workspace-status"><Activity size={13} />{currentSnapshot?.phase ?? "Ready"}</span>
               </div>
               <div className="visualization-scroll-content">
+                {algorithm === "Neural Network" ? (
+                  <NeuralNetworkPlayground points={data.points} />
+                ) : <>
                 <section className="viz-section">
                   <div className="viz-section-heading"><div><div className="viz-section-title">Data visualization</div><div className="panel-description">Observe how the selected algorithm changes the data representation.</div></div><button className="text-button" onClick={() => { setSeed(v => v + 1); resetExecution(); }}><Shuffle size={13} />Regenerate</button></div>
                   <div className="viz-plot-wrap">
-                    {algorithm === "Neural Network" ? <NeuralNetworkPlayground points={data.points} /> : <ScatterPlot points={data.points} showLabels={showLabels} assignments={currentSnapshot?.assignments} centroids={currentSnapshot?.centroids} regressionLine={currentSnapshot?.regressionLine} decisionSplits={currentSnapshot?.decisionSplits} highlightedPointIds={currentSnapshot?.highlightedPointIds} title={selectedDataset?.label} />}
+                    <ScatterPlot points={data.points} showLabels={showLabels} assignments={currentSnapshot?.assignments} centroids={currentSnapshot?.centroids} regressionLine={currentSnapshot?.regressionLine} decisionSplits={currentSnapshot?.decisionSplits} highlightedPointIds={currentSnapshot?.highlightedPointIds} title={selectedDataset?.label} />
                   </div>
                   <div className="plot-meta"><span>{samples} samples</span><span>2 features</span><span>Seed {seed}</span><span>{showLabels ? "Supervised labels visible" : "Unsupervised view"}</span></div>
                 </section>
@@ -208,6 +211,7 @@ export default function Home() {
                   <div className="viz-section-heading"><div><div className="viz-section-title">Model summary</div><div className="panel-description">Overall interpretation of this algorithm run.</div></div></div>
                   <div className="summary-card"><p>{result.summary}</p><div className="summary-stats"><div><span>Algorithm</span><strong>{algorithm}</strong></div><div><span>Execution steps</span><strong>{totalSteps}</strong></div><div><span>Training data</span><strong>{samples} points</strong></div><div><span>Current stage</span><strong>{currentStep + 1} / {totalSteps}</strong></div></div></div>
                 </section>
+                </>}
               </div>
             </section>
           </div>
