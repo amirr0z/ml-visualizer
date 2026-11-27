@@ -974,3 +974,65 @@ input[type="range"] {
 #neural-network-execution-slot .execution-step-title {
   overflow-wrap: anywhere;
 }
+
+
+/* Slim, theme-aware scrollbars for all independently scrollable work areas. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Prevent the execution text and its portal container from affecting sidebar width. */
+.execution-fixed {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+#neural-network-execution-slot {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+#neural-network-execution-slot > div {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+#neural-network-execution-slot .execution-step-title,
+.execution-fixed .execution-step-title {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+  word-break: normal;
+  box-sizing: border-box;
+}

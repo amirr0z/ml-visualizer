@@ -18,7 +18,7 @@ function trainOne(net:Network,data:{x:number;y:number;target:number}[],t:Activat
    if(l>0){const prev=Array(next.weights[l][0].length).fill(0);for(let i=0;i<prev.length;i++){let sum=0;for(let j=0;j<d.length;j++)sum+=next.weights[l][j][i]*d[j];prev[i]=sum*deriv(f.zs[l-1][i],f.values[l][i],t);}d=prev;}
   }
  }
- const scale=Math.min(rate,.08)/Math.max(1,data.length);
+ const scale=Math.min(Math.max(rate,0),1)/Math.max(1,data.length);
  next.weights.forEach((l,a)=>l.forEach((r,b)=>r.forEach((_,c)=>{const g=Math.max(-5,Math.min(5,gw[a][b][c]));next.weights[a][b][c]=Math.max(-8,Math.min(8,next.weights[a][b][c]-scale*g));})));
  next.biases.forEach((l,a)=>l.forEach((_,b)=>{const g=Math.max(-5,Math.min(5,gb[a][b]));next.biases[a][b]=Math.max(-8,Math.min(8,next.biases[a][b]-scale*g));}));
  const avg=loss/Math.max(1,data.length);if(!Number.isFinite(avg)||next.weights.some(l=>l.some(r=>r.some(w=>!Number.isFinite(w)))))throw Error("Numerical instability. Reset the network or reduce the learning rate.");
@@ -49,7 +49,7 @@ export default function NeuralNetworkPlayground({points,learningRate,epochs,seed
  const execution=<div className="space-y-2"><div className="flex items-center justify-between"><div><div className="panel-title">Execution</div><div className="panel-description">Step {step+1} of {epochs+1} · {step===0?"Initialization":playing?"Training":"Epoch "+step}</div></div><button className="text-button" onClick={reset}><RotateCcw size={13}/>Reset</button></div>
   <input type="range" min="0" max={Math.max(0,history.length-1)} value={step} onChange={e=>{const n=Number(e.target.value);stepRef.current=n;setStep(n);setPlaying(false);}} className="w-full mt-3" aria-label="Training timeline"/>
   <div className="execution-compact-controls"><button className="execution-button" onClick={()=>{stepRef.current=0;setStep(0);setPlaying(false);}}><SkipBack size={16}/></button><button className="execution-button" disabled={step===0} onClick={()=>{const n=step-1;stepRef.current=n;setStep(n);setPlaying(false);}}><ChevronLeft size={17}/></button><button className="execution-button primary" onClick={()=>setPlaying(v=>!v)} disabled={step>=epochs&&history.length>epochs}>{playing?<Pause size={17}/>:<Play size={17} fill="currentColor"/>}</button><button className="execution-button" disabled={step>=epochs} onClick={()=>{setPlaying(false);next();}}><ChevronRight size={17}/></button><button className="execution-button" onClick={()=>setPlaying(true)} disabled={step>=epochs}><SkipForward size={16}/></button></div>
-  <div className="execution-step-title">{step===0?"Initialize weights and biases": "Epoch "+step+": forward propagation, loss calculation, backpropagation, and gradient descent"}</div>{error&&<p className="text-xs text-red-500">{error}</p>}
+  <div className="execution-step-title" title={step===0?"Initialize weights and biases":"Epoch "+step+": forward propagation, loss calculation, backpropagation, and gradient descent"}>{step===0?"Initialize weights and biases": "Epoch "+step+": forward propagation, loss calculation, backpropagation, and gradient descent"}</div>{error&&<p className="text-xs text-red-500">{error}</p>}
  </div>;
  const width=Math.max(900,layers.length*230),height=Math.max(340,Math.max(...layers)*76+100),xAt=(l:number)=>80+l*(width-160)/(layers.length-1),yAt=(l:number,i:number)=>height/2-(layers[l]-1)*34+i*68;
  return <>
