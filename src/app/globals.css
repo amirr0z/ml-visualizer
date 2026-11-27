@@ -1036,3 +1036,46 @@ input[type="range"] {
   word-break: normal;
   box-sizing: border-box;
 }
+
+
+/* Minimal theme-colored scrollbars: transparent track, no arrow buttons. */
+:root {
+  scrollbar-color: var(--accent) transparent;
+  scrollbar-width: thin;
+}
+* {
+  scrollbar-color: var(--accent) transparent;
+  scrollbar-width: thin;
+}
+*::-webkit-scrollbar {
+  width: 4px !important;
+  height: 4px !important;
+  background: transparent !important;
+}
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-track-piece {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--accent) 72%, transparent) !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+}
+*::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:active {
+  background: var(--accent) !important;
+}
+*::-webkit-scrollbar-button,
+*::-webkit-scrollbar-button:single-button,
+*::-webkit-scrollbar-button:vertical,
+*::-webkit-scrollbar-button:horizontal {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+*::-webkit-scrollbar-corner {
+  background: transparent !important;
+}
