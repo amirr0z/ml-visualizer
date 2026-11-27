@@ -173,26 +173,15 @@ export default function NeuralNetworkPlayground({ points }: { points: DataPoint[
       </div>
       <div>
         <label className="control-label"><span>Learning rate</span><span className="control-value">{learningRate.toFixed(3)}</span></label>
-        <input type="range" min="0.001" max="0.2" step="0.001" value={learningRate} onChange={event => setLearningRate(Number(event.target.value))} />
+        <input type="range" min="0.001" max="0.08" step="0.001" value={learningRate} onChange={event => setLearningRate(Number(event.target.value))} />
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium">Hidden layers</span>
-        {layerSizes.map((size, index) => <div key={index} className="flex items-center gap-1 text-xs">
-          <span>{index + 1}:</span><button className="icon-button !w-7 !h-7 border" onClick={() => setLayerSizes(current => current.map((n, i) => i === index ? Math.max(1, n - 1) : n))}>−</button>
-          <strong>{size}</strong><button className="icon-button !w-7 !h-7 border" onClick={() => setLayerSizes(current => current.map((n, i) => i === index ? Math.min(8, n + 1) : n))}>+</button>
-        </div>)}
+      <div className="rounded-lg border p-3 space-y-3" style={{borderColor:"var(--border)"}}>
+        <div className="flex items-center justify-between"><span className="text-xs font-semibold">Hidden layer configuration</span><span className="text-[10px]" style={{color:"var(--text-muted)"}}>{layerSizes.length} layers</span></div>
+        {layerSizes.map((size,index)=><div key={index} className="flex items-center justify-between gap-2 text-xs"><span>Hidden layer {index+1}</span><div className="flex items-center gap-2"><button className="icon-button !w-7 !h-7 border" onClick={()=>setLayerSizes(v=>v.map((n,i)=>i===index?Math.max(1,n-1):n))}>−</button><strong className="w-5 text-center">{size}</strong><button className="icon-button !w-7 !h-7 border" onClick={()=>setLayerSizes(v=>v.map((n,i)=>i===index?Math.min(8,n+1):n))}>+</button></div></div>)}
+        <div className="flex flex-wrap gap-3"><button className="text-button" disabled={layerSizes.length>=4} onClick={()=>setLayerSizes(v=>v.length<4?[...v,3]:v)}>+ Add hidden layer</button><button className="text-button" disabled={layerSizes.length<=1} onClick={()=>setLayerSizes(v=>v.length>1?v.slice(0,-1):v)}>Remove last layer</button></div>
+        <button className="text-button" onClick={()=>reset()}>Apply architecture and reset</button>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <button className="text-button" onClick={() => setLayerSizes(current => current.length < 4 ? [...current, 3] : current)}>Add layer</button>
-        {layerSizes.length > 1 && <button className="text-button" onClick={() => setLayerSizes(current => current.slice(0, -1))}>Remove layer</button>}
-        <button className="text-button" onClick={() => reset()}>Apply architecture</button>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <button className="execution-button primary !w-auto !h-9 !rounded-lg px-4 text-xs" onClick={() => setPlaying(current => !current)}>{playing ? "Pause training" : "Train"}</button>
-        <button className="text-button" onClick={trainEpoch} disabled={playing}>One epoch</button>
-        <button className="text-button" onClick={() => reset()}>Reset weights</button>
-        <button className="text-button" onClick={() => { const nextSeed = seed + 1; setSeed(nextSeed); reset(nextSeed); }}>New initialization</button>
-      </div>
+      <div className="flex flex-wrap gap-3"><button className="text-button" onClick={()=>reset()}>Reset weights</button><button className="text-button" onClick={()=>{const nextSeed=seed+1;setSeed(nextSeed);reset(nextSeed);}}>New initialization</button></div>
       <div className="grid grid-cols-2 gap-2">
         <div className="metric-card"><div className="metric-label">Epoch</div><div className="metric-value">{epoch}</div></div>
         <div className="metric-card"><div className="metric-label">Training loss</div><div className="metric-value">{loss.toFixed(5)}</div></div>
