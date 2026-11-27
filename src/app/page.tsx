@@ -9,12 +9,13 @@ import {
   BookOpen, Calculator, GitBranch, BarChart3, Info,
 } from "lucide-react";
 import ScatterPlot from "@/components/visualizations/ScatterPlot";
+import NeuralNetworkPlayground from "@/components/visualizations/NeuralNetworkPlayground";
 import { generateDataset, type DatasetName } from "@/lib/datasets/generateDataset";
 import { runAlgorithm } from "@/lib/algorithms/engine";
 import { DEFAULT_PARAMETERS, type AlgorithmName, type AlgorithmParameters } from "@/lib/algorithms/types";
 
 const groups = [
-  { name: "Classification", algorithms: ["CART", "C4.5", "KNN", "SVM", "Naive Bayes"] },
+  { name: "Classification", algorithms: ["CART", "C4.5", "KNN", "SVM", "Naive Bayes", "Neural Network"] },
   { name: "Clustering", algorithms: ["K-Means"] },
   { name: "Regression", algorithms: ["Linear Regression"] },
   { name: "Dimensionality Reduction", algorithms: ["PCA"] },
@@ -26,6 +27,7 @@ const datasets = [
   { name: "spiral", label: "Spiral", description: "Interlocking spirals" },
   { name: "linear", label: "Linear", description: "Linear separation" },
   { name: "xor", label: "XOR", description: "Exclusive OR" },
+  { name: "linear-regression", label: "Regression", description: "Continuous linear target" },
 ] as const;
 const classificationAlgorithms: AlgorithmName[] = ["CART", "C4.5", "KNN", "SVM", "Naive Bayes"];
 const algorithmGuides: Record<AlgorithmName, { idea: string; mechanics: string[]; assumptions: string[]; complexity: string }> = {
@@ -36,6 +38,7 @@ const algorithmGuides: Record<AlgorithmName, { idea: string; mechanics: string[]
   "Naive Bayes": { idea: "Uses Bayes' theorem with a conditional-independence assumption to calculate the posterior probability of each class.", mechanics: ["Estimate prior probability for each class.", "Estimate each feature's mean and variance within each class.", "Evaluate the Gaussian likelihood of the query features.", "Combine likelihoods with class priors.", "Choose the class with the largest posterior score."], assumptions: ["Features are treated as conditionally independent given the class.", "Continuous features are modeled with Gaussian distributions.", "The independence assumption is a simplification, not a requirement of real data."], complexity: "Parameter estimation and prediction are linear in the number of observations and features." },
   "K-Means": { idea: "Partitions observations into K clusters by alternating nearest-centroid assignment and centroid recomputation.", mechanics: ["Choose K initial centroids.", "Assign every observation to its nearest centroid.", "Recalculate each centroid as the mean of its assigned observations.", "Repeat assignment and update until convergence or the iteration limit.", "Inspect cluster membership and within-cluster compactness."], assumptions: ["Uses Euclidean distance and mean-based centroids.", "The objective favors compact, roughly spherical clusters.", "The result can depend on initialization and the selected K."], complexity: "Each iteration compares every observation with every centroid: O(n × K × iterations)." },
   "Linear Regression": { idea: "Fits a linear relationship by minimizing the mean squared difference between predicted and observed target values.", mechanics: ["Initialize slope and intercept.", "Calculate predictions for all observations.", "Calculate residuals and mean squared error.", "Compute gradients for slope and intercept.", "Update parameters with gradient descent and inspect the final fit."], assumptions: ["The model is a straight line in the current one-predictor view.", "MSE penalizes large residuals more strongly.", "Gradient descent behavior depends on learning rate and feature scale."], complexity: "Each epoch evaluates predictions and gradients over the training observations: O(n) per epoch." },
+  "Neural Network": { idea: "A multi-layer perceptron learns nonlinear decision boundaries by composing weighted sums and activation functions. It is trained using backpropagation and gradient descent.", mechanics: ["Pass the input features through each layer using weights and biases.", "Apply the selected activation function to each hidden layer.", "Calculate binary cross-entropy from the output probability and true class.", "Propagate gradients backward through the network using the chain rule.", "Update all weights and biases using gradient descent."], assumptions: ["This playground performs binary classification on two input features.", "All hidden layers are fully connected and share the selected activation function.", "The training loss is measured on the full supplied dataset; there is no held-out test split in this compact implementation."], complexity: "Each epoch performs a forward and backward pass for every sample; computation grows with the number of connections and observations." },
   "PCA": { idea: "Finds orthogonal directions of maximum variance and projects the centered data onto principal components.", mechanics: ["Calculate the mean of each feature.", "Center the observations by subtracting feature means.", "Calculate the covariance matrix.", "Find eigenvalues and eigenvectors of the covariance matrix.", "Project observations onto the first principal component and calculate explained variance."], assumptions: ["PCA is unsupervised and does not use class labels to choose components.", "The first component captures the largest possible variance among linear directions.", "Variance is not necessarily the same as class-separation quality."], complexity: "For two features, covariance and eigendecomposition are inexpensive; projection is linear in the sample count." },
 };
 
@@ -59,7 +62,7 @@ export default function Home() {
   const currentSnapshot = result.snapshots[Math.min(currentStep, totalSteps - 1)];
   const selectedDataset = datasets.find(d => d.name === dataset);
   const guide = algorithmGuides[algorithm];
-  const showLabels = classificationAlgorithms.includes(algorithm);
+  const showLabels = classificationAlgorithms.includes(algorithm) || algorithm === "Neural Network";
 
   useEffect(() => {
     if (!playing) return;
@@ -73,7 +76,7 @@ export default function Home() {
     setParameters(previous => ({ ...previous, [key]: value }));
     resetExecution();
   }
-  function selectAlgorithm(value: string) { setAlgorithm(value as AlgorithmName); resetExecution(); }
+  function selectAlgorithm(value: string) { const next = value as AlgorithmName; setAlgorithm(next); if (next === "Linear Regression") setDataset("linear-regression"); else if (dataset === "linear-regression") setDataset("blobs"); resetExecution(); }
   function togglePlay() {
     if (currentStep >= totalSteps - 1) setCurrentStep(0);
     setPlaying(value => !value);
@@ -122,7 +125,7 @@ export default function Home() {
               <section className="panel control-panel">
                 <div className="flex items-center justify-between mb-4"><div><div className="panel-title">Dataset Generator</div><div className="panel-description">Synthetic 2D data</div></div><Database size={16} style={{ color: "var(--accent)" }} /></div>
                 <div className="grid grid-cols-2 gap-2">
-                  {datasets.map(item => <button key={item.name} onClick={() => { setDataset(item.name); resetExecution(); }} className={`dataset-option ${dataset === item.name ? "active" : ""}`}><div className="dataset-option-name">{item.label}</div><div className="dataset-option-description">{item.description}</div></button>)}
+                  {datasets.filter(item => item.name !== "linear-regression" || algorithm === "Linear Regression").map(item => <button key={item.name} onClick={() => { setDataset(item.name); resetExecution(); }} className={`dataset-option ${dataset === item.name ? "active" : ""}`}><div className="dataset-option-name">{item.label}</div><div className="dataset-option-description">{item.description}</div></button>)}
                 </div>
                 <div className="control-section">
                   <div className="flex items-center gap-2 mb-4"><SlidersHorizontal size={14} style={{ color: "var(--accent)" }} /><div className="text-xs font-semibold">Dataset Parameters</div></div>

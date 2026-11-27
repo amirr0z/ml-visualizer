@@ -9,7 +9,8 @@ export type AlgorithmName =
     | "Naive Bayes"
     | "K-Means"
     | "Linear Regression"
-    | "PCA";
+    | "PCA"
+    | "Neural Network";
 
 export type AlgorithmPhase =
     | "initialization"

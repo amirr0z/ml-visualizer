@@ -1309,5 +1309,8 @@ export function runAlgorithm(
 
         case "PCA":
             return runPCA(input.points);
+
+        case "Neural Network":
+            return makeResult("Neural Network", [snapshot(0, "initialization", "Configure neural network", "Use the dedicated Playground interface to configure hidden layers, choose an activation function, and train the network with backpropagation.", { equation: "a⁽ˡ⁺¹⁾ = φ(W⁽ˡ⁾a⁽ˡ⁾ + b⁽ˡ⁾)", metrics: { inputFeatures: 2, hiddenLayers: 2, outputUnits: 1 } })], "A multi-layer perceptron learns nonlinear class boundaries through forward propagation, a loss function, backpropagation, and gradient descent.");
     }
 }

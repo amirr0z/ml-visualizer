@@ -5,7 +5,8 @@ export type DatasetName =
     | "circles"
     | "spiral"
     | "linear"
-    | "xor";
+    | "xor"
+    | "linear-regression";
 
 export interface DataPoint {
     id: number;
@@ -208,6 +209,18 @@ export function generateDataset(
             const label = x * y > 0 ? 1 : 0;
 
             addPoint(x, y, label);
+        }
+    }
+
+    // =======================================
+    // LINEAR REGRESSION — CONTINUOUS TARGET
+    // =======================================
+
+    else if (type === "linear-regression") {
+        for (let i = 0; i < safeSamples; i++) {
+            const x = random() * 2 - 1;
+            const y = 0.72 * x + 0.18 + gaussian(random) * safeNoise;
+            points.push({ id: points.length, x, y, label: 0 });
         }
     }
 
