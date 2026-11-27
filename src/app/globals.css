@@ -948,3 +948,29 @@ input[type="range"] {
     min-height: 320px;
   }
 }
+
+
+/* Keep long neural-network execution descriptions inside the fixed sidebar. */
+.execution-fixed,
+.execution-fixed > *,
+#neural-network-execution-slot,
+#neural-network-execution-slot > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.execution-step-title {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
+  line-height: 1.4;
+  padding-inline: 2px;
+}
+#neural-network-execution-slot .execution-step-title {
+  overflow-wrap: anywhere;
+}
