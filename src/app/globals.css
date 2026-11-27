@@ -769,3 +769,182 @@ input[type="range"] {
   .app-content { padding: 14px; }
   .viz-plot-wrap { height: 52vh; min-height: 360px; }
 }
+
+
+/* =========================================
+   WORKSPACE LAYOUT FIX — KEEP BOTH CONTROL
+   PANELS VISIBLE AT TABLET/DESKTOP SIZES
+========================================= */
+
+/* The app shell owns the viewport. On desktop, only the visualization
+   content scrolls; the controls column remains present and independently
+   scrollable. Explicit min-height:0 is essential for nested grid/flex. */
+@media (min-width: 768px) {
+  .app-shell {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .app-main {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .app-content {
+    flex: 1 1 0;
+    height: 0;
+    min-height: 0;
+    padding: 16px 20px;
+    overflow: hidden;
+  }
+
+  .workspace-upgraded {
+    height: 100%;
+    min-height: 0;
+    grid-template-columns: minmax(250px, 290px) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .workspace-controls {
+    height: 100%;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr) auto;
+    overflow: hidden;
+  }
+
+  .workspace-controls > .control-panel {
+    min-height: 0;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .workspace-controls > .execution-fixed {
+    flex: 0 0 auto;
+    min-height: 150px;
+    overflow: visible;
+  }
+
+  .visualization-scroll-area {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .visualization-scroll-content {
+    min-height: 0;
+    height: 0;
+    flex: 1 1 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Tablet keeps the same two-column fixed workspace. The generator itself
+   scrolls internally, rather than forcing the entire page to scroll. */
+@media (min-width: 768px) and (max-width: 1279px) {
+  .app-content {
+    overflow: hidden;
+    padding: 12px;
+  }
+
+  .workspace-upgraded {
+    grid-template-columns: minmax(225px, 260px) minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .workspace-controls {
+    gap: 10px;
+  }
+
+  .workspace-controls > .execution-fixed {
+    min-height: 145px;
+    padding: 10px 12px;
+  }
+
+  .visualization-scroll-content {
+    padding: 14px;
+  }
+}
+
+/* On phones there is not enough horizontal room for a fixed side column.
+   Stack the generator, execution controls and visualization in normal
+   document flow so neither control panel can collapse or disappear. */
+@media (max-width: 767px) {
+  .app-shell {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .app-main {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .app-content {
+    flex: 1 1 auto;
+    height: 0;
+    min-height: 0;
+    padding: 12px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .workspace-upgraded {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .workspace-controls {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .workspace-controls > .control-panel {
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .workspace-controls > .execution-fixed {
+    position: static;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .visualization-scroll-area {
+    display: flex;
+    height: auto;
+    min-height: 520px;
+    overflow: visible;
+  }
+
+  .visualization-scroll-content {
+    height: auto;
+    flex: none;
+    overflow: visible;
+    padding: 14px;
+  }
+
+  .viz-plot-wrap {
+    height: 420px;
+    min-height: 320px;
+  }
+}
