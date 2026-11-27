@@ -1,29 +1,215 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { DataPoint } from "@/lib/datasets/generateDataset";
+
 type Activation = "tanh" | "relu" | "sigmoid" | "linear";
 type Network = { weights: number[][][]; biases: number[][] };
-function activate(x:number,t:Activation){if(t==="relu")return Math.max(0,x);if(t==="sigmoid")return 1/(1+Math.exp(-Math.max(-30,Math.min(30,x))));if(t==="linear")return x;return Math.tanh(x);}
-function derivative(z:number,a:number,t:Activation){if(t==="relu")return z>0?1:0;if(t==="sigmoid")return a*(1-a);if(t==="linear")return 1;return 1-a*a;}
-function initialize(sizes:number[],seed:number):Network{let s=seed>>>0;const rand=()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};return{weights:sizes.slice(1).map((n,l)=>Array.from({length:n},()=>Array.from({length:sizes[l]},()=> (rand()*2-1)*Math.sqrt(2/sizes[l])))),biases:sizes.slice(1).map(n=>Array(n).fill(0))};}
-function forward(net:Network,x:number,y:number,t:Activation){const values=[[x,y]],zs:number[][]=[];for(let l=0;l<net.weights.length;l++){const z=net.weights[l].map((row,j)=>row.reduce((sum,w,i)=>sum+w*values[l][i],net.biases[l][j]));zs.push(z);const isOutput=l===net.weights.length-1;values.push(z.map(v=>isOutput?activate(v,"sigmoid"):activate(v,t)));}return{values,zs,output:values[values.length-1][0]};}
-export default function NeuralNetworkPlayground({points}:{points:DataPoint[]}) {
- const [activation,setActivation]=useState<Activation>("tanh"),[learningRate,setLearningRate]=useState(.03),[layerSizes,setLayerSizes]=useState([4,3]),[network,setNetwork]=useState<Network>(()=>initialize([2,4,3,1],42)),[epoch,setEpoch]=useState(0),[loss,setLoss]=useState(.69),[playing,setPlaying]=useState(false),[seed,setSeed]=useState(42);
- const labels=useMemo(()=>[...new Set(points.map(p=>p.label))].sort(),[points]),positive=labels[labels.length-1]??1;
- const normalized=useMemo(()=>{const xs=points.map(p=>p.x),ys=points.map(p=>p.y),mx=xs.reduce((a,b)=>a+b,0)/Math.max(1,xs.length),my=ys.reduce((a,b)=>a+b,0)/Math.max(1,ys.length),sx=Math.sqrt(xs.reduce((a,v)=>a+(v-mx)**2,0)/Math.max(1,xs.length))||1,sy=Math.sqrt(ys.reduce((a,v)=>a+(v-my)**2,0)/Math.max(1,ys.length))||1;return points.map(p=>({x:(p.x-mx)/sx,y:(p.y-my)/sy,target:p.label===positive?1:0}));},[points,positive]);
- function reset(nextSeed=seed){setNetwork(initialize([2,...layerSizes,1],nextSeed));setEpoch(0);setLoss(.69315);setPlaying(false);}
- function trainEpoch(){if(!normalized.length)return;const net={weights:network.weights.map(a=>a.map(r=>[...r])),biases:network.biases.map(a=>[...a])};let total=0;const gw=net.weights.map(a=>a.map(r=>r.map(()=>0))),gb=net.biases.map(a=>a.map(()=>0));normalized.forEach(p=>{const pass=forward(net,p.x,p.y,activation),out=Math.max(1e-7,Math.min(1-1e-7,pass.output));total+=-(p.target*Math.log(out)+(1-p.target)*Math.log(1-out));let delta=[out-p.target];for(let l=net.weights.length-1;l>=0;l--){for(let j=0;j<delta.length;j++){gb[l][j]+=delta[j];for(let i=0;i<net.weights[l][j].length;i++)gw[l][j][i]+=delta[j]*pass.values[l][i];}if(l>0){const next=Array(net.weights[l][0].length).fill(0);for(let i=0;i<next.length;i++){let v=0;for(let j=0;j<delta.length;j++)v+=net.weights[l][j][i]*delta[j];next[i]=v*derivative(pass.zs[l-1][i],pass.values[l][i+1],activation);}delta=next;}}});const scale=learningRate/normalized.length;net.weights.forEach((a,l)=>a.forEach((r,j)=>r.forEach((w,i)=>{net.weights[l][j][i]=w-scale*gw[l][j][i];})));net.biases.forEach((a,l)=>a.forEach((b,j)=>{net.biases[l][j]=b-scale*gb[l][j];}));setNetwork(net);setEpoch(v=>v+1);setLoss(total/normalized.length);}
- useEffect(()=>{if(!playing)return;const id=window.setInterval(()=>trainEpoch(),40);return()=>window.clearInterval(id);});
- const grid=useMemo(()=>{const cells:{x:number;y:number;v:number}[]=[];for(let iy=0;iy<24;iy++)for(let ix=0;ix<24;ix++){const x=-1.2+ix*2.4/23,y=1.2-iy*2.4/23;cells.push({x:ix,y:iy,v:forward(network,x,y,activation).output});}return cells;},[network,activation]);
- const layers=[2,...network.weights.map(layer=>layer.length)];
- return <div className="space-y-5">
- <section className="analysis-card"><div className="flex flex-wrap justify-between gap-3"><div><div className="analysis-card-title">Multi-layer neural network</div><p className="analysis-description">Fully connected feed-forward network trained with backpropagation and binary cross-entropy.</p></div><span className="phase-pill">Epoch {epoch}</span></div>
- <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4"><label className="text-xs">Activation<select className="control-select mt-2" value={activation} onChange={e=>{setActivation(e.target.value as Activation);setPlaying(false);}}><option value="tanh">Tanh</option><option value="relu">ReLU</option><option value="sigmoid">Sigmoid</option><option value="linear">Linear</option></select></label><label className="text-xs">Learning rate <strong>{learningRate.toFixed(3)}</strong><input className="mt-3" type="range" min=".001" max=".2" step=".001" value={learningRate} onChange={e=>setLearningRate(Number(e.target.value))}/></label><div className="text-xs">Training loss<strong className="block text-lg mt-2">{loss.toFixed(5)}</strong></div><div className="text-xs">Training samples<strong className="block text-lg mt-2">{points.length}</strong></div></div>
- <div className="mt-4 flex flex-wrap items-center gap-3"><button className="execution-button primary !w-auto !h-9 !rounded-lg px-4 text-xs" onClick={()=>setPlaying(v=>!v)}>{playing?"Pause":"Train"}</button><button className="text-button" onClick={trainEpoch} disabled={playing}>One epoch</button><button className="text-button" onClick={reset}>Reset weights</button><button className="text-button" onClick={()=>{const nextSeed=seed+1;setSeed(nextSeed);reset(nextSeed);}}>New initialization</button></div></section>
- <section className="analysis-card"><div className="analysis-card-title">Network architecture</div><p className="analysis-description">Blue connections have positive weights; orange connections have negative weights. Change the number of neurons and hidden layers, then apply.</p>
- <div className="flex flex-wrap items-center gap-3 mt-4">{layerSizes.map((n,i)=><div key={i} className="flex items-center gap-2 text-xs">Layer {i+1}<button className="icon-button !w-7 !h-7 border" onClick={()=>setLayerSizes(v=>v.map((x,j)=>j===i?Math.max(1,x-1):x))}>−</button><strong>{n}</strong><button className="icon-button !w-7 !h-7 border" onClick={()=>setLayerSizes(v=>v.map((x,j)=>j===i?Math.min(8,x+1):x))}>+</button></div>)}<button className="text-button" onClick={()=>setLayerSizes(v=>v.length<4?[...v,3]:v)}>Add layer</button>{layerSizes.length>1&&<button className="text-button" onClick={()=>setLayerSizes(v=>v.slice(0,-1))}>Remove layer</button>}<button className="text-button" onClick={reset}>Apply architecture</button></div>
- <div className="flex justify-around items-center gap-3 py-6 overflow-x-auto">{layers.map((n,l)=><div key={l} className="flex flex-col items-center gap-2 min-w-12"><span className="text-[10px] text-[var(--text-muted)]">{l===0?"Input":l===layers.length-1?"Output":"Hidden "+l}</span>{Array.from({length:n},(_,i)=><span key={i} className="w-7 h-7 rounded-full border-2 flex items-center justify-center text-[9px]" style={{borderColor:"var(--accent)",background:"var(--accent-soft)"}}>{l===0?"x"+(i+1):i+1}</span>)}</div>)}</div></section>
- <section className="analysis-card"><div className="analysis-card-title">Learned decision boundary</div><p className="analysis-description">The background shows the model output across the feature plane and updates after each epoch.</p>
- <svg viewBox="0 0 480 480" className="w-full max-h-[620px] mt-3" role="img" aria-label="Neural network decision boundary"><rect x="60" y="60" width="360" height="360" fill="var(--plot-bg)"/>{grid.map((c,i)=><rect key={i} x={60+c.x*360/24} y={60+c.y*360/24} width="15.1" height="15.1" fill={c.v>=.5?"#3b82f6":"#f97316"} opacity={.08+Math.abs(c.v-.5)*.55}/>)}{points.map(p=><circle key={p.id} cx={240+p.x*150} cy={240-p.y*150} r="4" fill={p.label===positive?"#3b82f6":"#f97316"} stroke="var(--panel-bg)" strokeWidth="1.3"/>)}<rect x="60" y="60" width="360" height="360" fill="none" stroke="var(--plot-axis)"/></svg><div className="plot-meta"><span>Blue: positive class</span><span>Orange: negative class</span><span>Binary cross-entropy loss</span></div></section>
- <section className="analysis-card"><div className="analysis-card-title">How training works</div><ol className="guide-list"><li><span>1</span>Forward propagation calculates weighted sums and activations layer by layer.</li><li><span>2</span>Binary cross-entropy measures the output error.</li><li><span>3</span>Backpropagation uses the chain rule to calculate gradients for every weight and bias.</li><li><span>4</span>Gradient descent updates the parameters using the learning rate.</li></ol></section></div>;
+
+function activate(x: number, type: Activation) {
+  if (type === "relu") return Math.max(0, x);
+  if (type === "sigmoid") return 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, x))));
+  if (type === "linear") return x;
+  return Math.tanh(x);
+}
+function derivative(z: number, a: number, type: Activation) {
+  if (type === "relu") return z > 0 ? 1 : 0;
+  if (type === "sigmoid") return a * (1 - a);
+  if (type === "linear") return 1;
+  return 1 - a * a;
+}
+function initialize(sizes: number[], seed: number): Network {
+  let state = seed >>> 0;
+  const random = () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+  return {
+    weights: sizes.slice(1).map((size, layer) =>
+      Array.from({ length: size }, () =>
+        Array.from({ length: sizes[layer] }, () => (random() * 2 - 1) * Math.sqrt(2 / sizes[layer]))
+      )
+    ),
+    biases: sizes.slice(1).map(size => Array(size).fill(0)),
+  };
+}
+function forward(network: Network, x: number, y: number, activation: Activation) {
+  const values: number[][] = [[x, y]];
+  const zs: number[][] = [];
+  for (let layer = 0; layer < network.weights.length; layer++) {
+    const z = network.weights[layer].map((row, j) =>
+      row.reduce((sum, weight, i) => sum + weight * values[layer][i], network.biases[layer][j])
+    );
+    zs.push(z);
+    values.push(z.map(value => layer === network.weights.length - 1 ? activate(value, "sigmoid") : activate(value, activation)));
+  }
+  return { values, zs, output: values[values.length - 1][0] };
+}
+
+export default function NeuralNetworkPlayground({ points }: { points: DataPoint[] }) {
+  const [activation, setActivation] = useState<Activation>("tanh");
+  const [learningRate, setLearningRate] = useState(0.03);
+  const [layerSizes, setLayerSizes] = useState([4, 3]);
+  const [network, setNetwork] = useState<Network>(() => initialize([2, 4, 3, 1], 42));
+  const [epoch, setEpoch] = useState(0);
+  const [loss, setLoss] = useState(0.69315);
+  const [playing, setPlaying] = useState(false);
+  const [seed, setSeed] = useState(42);
+  const [mounted, setMounted] = useState(false);
+  const trainRef = useRef<() => void>(() => {});
+
+  useEffect(() => setMounted(true), []);
+
+  const labels = useMemo(() => [...new Set(points.map(point => point.label))].sort((a, b) => a - b), [points]);
+  const positive = labels[labels.length - 1] ?? 1;
+  const normalized = useMemo(() => {
+    const meanX = points.reduce((sum, p) => sum + p.x, 0) / Math.max(1, points.length);
+    const meanY = points.reduce((sum, p) => sum + p.y, 0) / Math.max(1, points.length);
+    const stdX = Math.sqrt(points.reduce((sum, p) => sum + (p.x - meanX) ** 2, 0) / Math.max(1, points.length)) || 1;
+    const stdY = Math.sqrt(points.reduce((sum, p) => sum + (p.y - meanY) ** 2, 0) / Math.max(1, points.length)) || 1;
+    return points.map(p => ({ x: (p.x - meanX) / stdX, y: (p.y - meanY) / stdY, target: p.label === positive ? 1 : 0 }));
+  }, [points, positive]);
+
+  function reset(nextSeed = seed) {
+    setNetwork(initialize([2, ...layerSizes, 1], nextSeed));
+    setEpoch(0);
+    setLoss(0.69315);
+    setPlaying(false);
+  }
+
+  function trainEpoch() {
+    if (!normalized.length) return;
+    const next: Network = {
+      weights: network.weights.map(layer => layer.map(row => [...row])),
+      biases: network.biases.map(layer => [...layer]),
+    };
+    const weightGradients = next.weights.map(layer => layer.map(row => row.map(() => 0)));
+    const biasGradients = next.biases.map(layer => layer.map(() => 0));
+    let totalLoss = 0;
+
+    for (const point of normalized) {
+      const pass = forward(next, point.x, point.y, activation);
+      const output = Math.max(1e-7, Math.min(1 - 1e-7, pass.output));
+      totalLoss += -(point.target * Math.log(output) + (1 - point.target) * Math.log(1 - output));
+      let delta = [output - point.target];
+
+      for (let layer = next.weights.length - 1; layer >= 0; layer--) {
+        for (let neuron = 0; neuron < delta.length; neuron++) {
+          biasGradients[layer][neuron] += delta[neuron];
+          for (let input = 0; input < next.weights[layer][neuron].length; input++) {
+            weightGradients[layer][neuron][input] += delta[neuron] * pass.values[layer][input];
+          }
+        }
+        if (layer > 0) {
+          const previousDelta = Array(next.weights[layer][0].length).fill(0);
+          for (let input = 0; input < previousDelta.length; input++) {
+            let propagated = 0;
+            for (let neuron = 0; neuron < delta.length; neuron++) propagated += next.weights[layer][neuron][input] * delta[neuron];
+            previousDelta[input] = propagated * derivative(pass.zs[layer - 1][input], pass.values[layer][input + 1], activation);
+          }
+          delta = previousDelta;
+        }
+      }
+    }
+
+    const scale = learningRate / normalized.length;
+    next.weights.forEach((layer, l) => layer.forEach((row, j) => row.forEach((_, i) => {
+      next.weights[l][j][i] -= scale * weightGradients[l][j][i];
+    })));
+    next.biases.forEach((layer, l) => layer.forEach((_, j) => {
+      next.biases[l][j] -= scale * biasGradients[l][j];
+    }));
+
+    setNetwork(next);
+    setEpoch(current => current + 1);
+    setLoss(totalLoss / normalized.length);
+  }
+
+  useEffect(() => { trainRef.current = trainEpoch; });
+  useEffect(() => {
+    if (!playing) return;
+    const timer = window.setInterval(() => trainRef.current(), 80);
+    return () => window.clearInterval(timer);
+  }, [playing]);
+
+  const grid = useMemo(() => {
+    const cells: { x: number; y: number; value: number }[] = [];
+    for (let iy = 0; iy < 30; iy++) {
+      for (let ix = 0; ix < 30; ix++) {
+        const x = -1.5 + (ix / 29) * 3;
+        const y = 1.5 - (iy / 29) * 3;
+        cells.push({ x: ix, y: iy, value: forward(network, x, y, activation).output });
+      }
+    }
+    return cells;
+  }, [network, activation]);
+  const layers = [2, ...network.weights.map(layer => layer.length)];
+
+  const controls = (
+    <div className="space-y-4">
+      <div>
+        <label className="control-label">Activation function</label>
+        <select className="control-select" value={activation} onChange={event => { setActivation(event.target.value as Activation); setPlaying(false); }}>
+          <option value="tanh">Tanh</option><option value="relu">ReLU</option><option value="sigmoid">Sigmoid</option><option value="linear">Linear</option>
+        </select>
+      </div>
+      <div>
+        <label className="control-label"><span>Learning rate</span><span className="control-value">{learningRate.toFixed(3)}</span></label>
+        <input type="range" min="0.001" max="0.2" step="0.001" value={learningRate} onChange={event => setLearningRate(Number(event.target.value))} />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium">Hidden layers</span>
+        {layerSizes.map((size, index) => <div key={index} className="flex items-center gap-1 text-xs">
+          <span>{index + 1}:</span><button className="icon-button !w-7 !h-7 border" onClick={() => setLayerSizes(current => current.map((n, i) => i === index ? Math.max(1, n - 1) : n))}>−</button>
+          <strong>{size}</strong><button className="icon-button !w-7 !h-7 border" onClick={() => setLayerSizes(current => current.map((n, i) => i === index ? Math.min(8, n + 1) : n))}>+</button>
+        </div>)}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button className="text-button" onClick={() => setLayerSizes(current => current.length < 4 ? [...current, 3] : current)}>Add layer</button>
+        {layerSizes.length > 1 && <button className="text-button" onClick={() => setLayerSizes(current => current.slice(0, -1))}>Remove layer</button>}
+        <button className="text-button" onClick={() => reset()}>Apply architecture</button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button className="execution-button primary !w-auto !h-9 !rounded-lg px-4 text-xs" onClick={() => setPlaying(current => !current)}>{playing ? "Pause training" : "Train"}</button>
+        <button className="text-button" onClick={trainEpoch} disabled={playing}>One epoch</button>
+        <button className="text-button" onClick={() => reset()}>Reset weights</button>
+        <button className="text-button" onClick={() => { const nextSeed = seed + 1; setSeed(nextSeed); reset(nextSeed); }}>New initialization</button>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="metric-card"><div className="metric-label">Epoch</div><div className="metric-value">{epoch}</div></div>
+        <div className="metric-card"><div className="metric-label">Training loss</div><div className="metric-value">{loss.toFixed(5)}</div></div>
+      </div>
+    </div>
+  );
+
+  return <>
+    {mounted && typeof document !== "undefined" && document.getElementById("neural-network-controls-slot") && createPortal(controls, document.getElementById("neural-network-controls-slot")!)}
+    <div className="space-y-5">
+      <section className="analysis-card">
+        <div className="analysis-card-title">Network architecture</div>
+        <p className="analysis-description">Each layer is fully connected to the next. Hidden layers use {activation}; the output uses sigmoid for binary classification.</p>
+        <div className="flex justify-around items-center gap-3 py-6 overflow-x-auto">
+          {layers.map((count, layer) => <div key={layer} className="flex flex-col items-center gap-2 min-w-12">
+            <span className="text-[10px] text-[var(--text-muted)]">{layer === 0 ? "Input" : layer === layers.length - 1 ? "Output" : "Hidden " + layer}</span>
+            {Array.from({ length: count }, (_, index) => <span key={index} className="w-7 h-7 rounded-full border-2 flex items-center justify-center text-[9px]" style={{ borderColor: "var(--accent)", background: "var(--accent-soft)" }}>{layer === 0 ? "x" + (index + 1) : index + 1}</span>)}
+          </div>)}
+        </div>
+      </section>
+      <section className="analysis-card">
+        <div className="flex flex-wrap justify-between gap-3"><div><div className="analysis-card-title">Learned decision boundary</div><p className="analysis-description">The model output updates as gradient descent trains the network.</p></div><span className="phase-pill">{playing ? "Training" : "Paused"} · Epoch {epoch}</span></div>
+        <svg viewBox="0 0 480 480" className="w-full max-h-[620px] mt-3" role="img" aria-label="Neural network decision boundary">
+          <rect x="60" y="60" width="360" height="360" fill="var(--plot-bg)" />
+          {grid.map((cell, index) => <rect key={index} x={60 + cell.x * 360 / 30} y={60 + cell.y * 360 / 30} width="12.1" height="12.1" fill={cell.value >= 0.5 ? "#3b82f6" : "#f97316"} opacity={0.08 + Math.abs(cell.value - 0.5) * 0.55} />)}
+          {points.map(point => <circle key={point.id} cx={240 + point.x * 150} cy={240 - point.y * 150} r="4" fill={point.label === positive ? "#3b82f6" : "#f97316"} stroke="var(--panel-bg)" strokeWidth="1.3" />)}
+          <rect x="60" y="60" width="360" height="360" fill="none" stroke="var(--plot-axis)" />
+        </svg>
+        <div className="plot-meta"><span>Blue: positive class</span><span>Orange: negative class</span><span>Binary cross-entropy</span></div>
+      </section>
+      <section className="analysis-card">
+        <div className="analysis-card-title">How training works</div>
+        <ol className="guide-list"><li><span>1</span>Forward propagation calculates weighted sums and activations.</li><li><span>2</span>Binary cross-entropy measures prediction error.</li><li><span>3</span>Backpropagation calculates gradients for each weight and bias.</li><li><span>4</span>Gradient descent updates parameters using the learning rate.</li></ol>
+      </section>
+    </div>
+  </>;
 }
