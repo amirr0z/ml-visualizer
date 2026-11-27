@@ -170,7 +170,7 @@ export default function Home() {
                 <section className="viz-section">
                   <div className="viz-section-heading"><div><div className="viz-section-title">Data visualization</div><div className="panel-description">Observe how the selected algorithm changes the data representation.</div></div><button className="text-button" onClick={() => { setSeed(v => v + 1); resetExecution(); }}><Shuffle size={13} />Regenerate</button></div>
                   <div className="viz-plot-wrap">
-                    <ScatterPlot points={data.points} showLabels={showLabels} assignments={currentSnapshot?.assignments} centroids={currentSnapshot?.centroids} regressionLine={currentSnapshot?.regressionLine} decisionSplits={currentSnapshot?.decisionSplits} highlightedPointIds={currentSnapshot?.highlightedPointIds} title={selectedDataset?.label} />
+                    {algorithm === "Neural Network" ? <NeuralNetworkPlayground points={data.points} /> : <ScatterPlot points={data.points} showLabels={showLabels} assignments={currentSnapshot?.assignments} centroids={currentSnapshot?.centroids} regressionLine={currentSnapshot?.regressionLine} decisionSplits={currentSnapshot?.decisionSplits} highlightedPointIds={currentSnapshot?.highlightedPointIds} title={selectedDataset?.label} />}
                   </div>
                   <div className="plot-meta"><span>{samples} samples</span><span>2 features</span><span>Seed {seed}</span><span>{showLabels ? "Supervised labels visible" : "Unsupervised view"}</span></div>
                 </section>
