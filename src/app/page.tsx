@@ -76,7 +76,7 @@ export default function Home() {
     setParameters(previous => ({ ...previous, [key]: value }));
     resetExecution();
   }
-  function selectAlgorithm(value: string) { const next = value as AlgorithmName; setAlgorithm(next); if (next === "Linear Regression") setDataset("linear-regression"); else if (dataset === "linear-regression") setDataset("blobs"); resetExecution(); }
+  function selectAlgorithm(value: string) { const next = value as AlgorithmName; setAlgorithm(next); if (next === "Linear Regression") setDataset("linear-regression"); else if (next === "Neural Network") setDataset("xor"); else if (dataset === "linear-regression") setDataset("blobs"); resetExecution(); }
   function togglePlay() {
     if (currentStep >= totalSteps - 1) setCurrentStep(0);
     setPlaying(value => !value);
